@@ -31,7 +31,7 @@ Le positionnement repose sur :
 - cohérence avec la réalité actuelle de Nexdoor Talent
 - respect du niveau d’avancement réel du projet
 - réduction de la dispersion
-
+  
 ## Ce que l’assistant doit éviter
 - réponses trop théoriques
 - jargon inutile
