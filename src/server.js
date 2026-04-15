@@ -2184,3 +2184,230 @@ process.on("SIGTERM", async () => {
     process.exit(0);
   });
 });
+
+app.get("/setup/api/sheets/test", requireSetupAuth, async (_req, res) => {
+  try {
+    const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
+
+    if (!sheetId) {
+      return res.status(500).json({
+        ok: false,
+        error: "GOOGLE_SHEET_ID manquant dans Railway",
+      });
+    }
+
+    const sheets = await getSheetsClient();
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "Candidates_Master!A1:D5",
+    });
+
+    return res.json({
+      ok: true,
+      rows: response.data.values || [],
+      message: "Connexion Google Sheets OK",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      error: String(err.message || err),
+      hint: "Vérifie GOOGLE_SERVICE_ACCOUNT_JSON et GOOGLE_SHEET_ID dans Railway",
+    });
+  }
+});
+
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function plusDaysIso(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function normalizeCell(value) {
+  if (value === undefined || value === null) return "";
+  return String(value).trim();
+}
+
+async function getSheetRows(sheets, spreadsheetId, range) {
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range,
+  });
+  return response.data.values || [];
+}
+
+function buildRowFromHeaders(headers, data) {
+  return headers.map((header) => {
+    const value = data[header];
+    return value === undefined || value === null ? "" : String(value);
+  });
+}
+
+function nextCandidateIdFromValues(values, candidateIdColIndex) {
+  let max = 0;
+
+  for (let i = 1; i < values.length; i++) {
+    const raw = values[i]?.[candidateIdColIndex];
+    if (!raw) continue;
+    const match = String(raw).match(/^NT-(\d+)$/);
+    if (!match) continue;
+    const n = Number.parseInt(match[1], 10);
+    if (!Number.isNaN(n) && n > max) max = n;
+  }
+
+  return `NT-${String(max + 1).padStart(3, "0")}`;
+}
+
+app.post("/setup/api/sheets/add-candidate", requireSetupAuth, async (req, res) => {
+  try {
+    const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
+
+    if (!sheetId) {
+      return res.status(500).json({
+        ok: false,
+        error: "GOOGLE_SHEET_ID manquant dans Railway",
+      });
+    }
+
+    const sheets = await getSheetsClient();
+
+    const rows = await getSheetRows(
+      sheets,
+      sheetId,
+      "Candidates_Master!A1:AZ2000",
+    );
+
+    if (!rows.length) {
+      return res.status(500).json({
+        ok: false,
+        error: "Candidates_Master est vide ou introuvable",
+      });
+    }
+
+    const headers = rows[0];
+    const candidateIdColIndex = headers.indexOf("candidate_id");
+    const linkedinColIndex = headers.indexOf("linkedin_url");
+
+    if (candidateIdColIndex === -1) {
+      return res.status(500).json({
+        ok: false,
+        error: "Colonne candidate_id introuvable dans Candidates_Master",
+      });
+    }
+
+    const body = req.body || {};
+
+    const full_name = normalizeCell(body.full_name);
+    const linkedin_url = normalizeCell(body.linkedin_url);
+    const location = normalizeCell(body.location) || "À qualifier";
+    const current_title = normalizeCell(body.current_title) || "À qualifier";
+    const current_company = normalizeCell(body.current_company) || "À qualifier";
+    const seniority = normalizeCell(body.seniority) || "À qualifier";
+    const stack_main = normalizeCell(body.stack_main) || "À qualifier";
+    const target_role = normalizeCell(body.target_role) || current_title || "À qualifier";
+    const target_market = normalizeCell(body.target_market) || "À qualifier";
+    const languages = normalizeCell(body.languages) || "À qualifier";
+    const availability = normalizeCell(body.availability) || "À qualifier";
+    const source = normalizeCell(body.source) || "LinkedIn";
+    const assigned_mission = normalizeCell(body.assigned_mission);
+    const owner = normalizeCell(body.owner) || "Rosy";
+    const notes = normalizeCell(body.notes);
+
+    if (!full_name && !linkedin_url) {
+      return res.status(400).json({
+        ok: false,
+        error: "full_name ou linkedin_url est requis",
+      });
+    }
+
+    if (linkedin_url && linkedinColIndex !== -1) {
+      for (let i = 1; i < rows.length; i++) {
+        const existing = normalizeCell(rows[i]?.[linkedinColIndex]).toLowerCase();
+        if (existing && existing === linkedin_url.toLowerCase()) {
+          return res.status(409).json({
+            ok: false,
+            error: "Doublon détecté sur linkedin_url",
+            existing_candidate_id: rows[i]?.[candidateIdColIndex] || null,
+          });
+        }
+      }
+    }
+
+    const candidate_id = nextCandidateIdFromValues(rows, candidateIdColIndex);
+    const today = todayIso();
+
+    const candidateData = {
+      candidate_id,
+      date_added: today,
+      added_by: "Discord",
+      full_name,
+      linkedin_url,
+      location,
+      current_title,
+      current_company,
+      seniority,
+      stack_main,
+      target_role,
+      target_market,
+      languages,
+      availability,
+      source,
+      assigned_mission,
+      owner,
+      status: "new",
+      priority: "medium",
+      fit_score: "0",
+      fit_reason: "",
+      notes,
+      last_update: today,
+      next_action: "Qualifier profil",
+      next_action_date: plusDaysIso(2),
+      manatal_sync_status: "not_sent",
+      manatal_id: "",
+      gdpr_consent: "en_attente",
+    };
+
+    const row = buildRowFromHeaders(headers, candidateData);
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: "Candidates_Master!A:AZ",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [row],
+      },
+    });
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: "Automations_Log!A:G",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [[
+          new Date().toISOString().slice(0, 16).replace("T", " "),
+          candidate_id,
+          "add_candidate",
+          "Discord",
+          "Candidates_Master",
+          "success",
+          `Created candidate ${full_name || linkedin_url}`,
+        ]],
+      },
+    });
+
+    return res.json({
+      ok: true,
+      candidate_id,
+      message: "Candidate ajouté avec succès",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      error: String(err.message || err),
+    });
+  }
+});
