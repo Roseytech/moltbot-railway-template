@@ -5,6 +5,9 @@
   "engines": {
     "node": ">=22"
   },
+  "bin": {
+    "headhunter-ops": "./bin/headhunter-ops.js"
+  },
   "scripts": {
     "dev": "node src/server.js",
     "start": "node src/server.js",
