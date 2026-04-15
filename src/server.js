@@ -663,7 +663,41 @@ app.get("/setup/styles.css", requireSetupAuth, (_req, res) => {
 app.get("/setup", requireSetupAuth, (_req, res) => {
   res.sendFile(path.join(process.cwd(), "src", "public", "setup.html"));
 });
+app.get("/setup", requireSetupAuth, (_req, res) => {
+  res.sendFile(path.join(process.cwd(), "src", "public", "setup.html"));
+});
 
+app.post("/setup/api/sheets/check-access", requireSetupAuth, async (req, res) => {
+  try {
+    const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
+    const sheet = String(req.body?.sheet || "Candidates_Master").trim();
+
+    if (!sheetId) {
+      return res.status(500).type("text/plain").send("GOOGLE_SHEET_ID manquant");
+    }
+
+    const sheets = await getSheetsClient();
+
+    const meta = await sheets.spreadsheets.get({
+      spreadsheetId: sheetId,
+      fields: "sheets(properties(title))",
+    });
+
+    const titles = (meta.data.sheets || [])
+      .map((s) => s?.properties?.title)
+      .filter(Boolean);
+
+    if (!titles.includes(sheet)) {
+      return res.status(404).type("text/plain").send(`Sheet tab "${sheet}" not found`);
+    }
+
+    return res.type("text/plain").send("access ok");
+  } catch (err) {
+    return res.status(500).type("text/plain").send(String(err?.message || err));
+  }
+});
+
+function buildOnboardArgs(payload) {
 function buildOnboardArgs(payload) {
   const args = [
     "onboard",
