@@ -1,4 +1,4 @@
 # Tools
 
 ### Headhunter Ops
-Command: node ./bin/headhunter-ops.js
+Command: sh /data/workspace/headhunter-ops.sh
