@@ -8,6 +8,8 @@ import express from "express";
 import httpProxy from "http-proxy";
 import * as tar from "tar";
 
+import { getSheetsClient } from "./googleSheets.js";
+
 // ========== ENVIRONMENT VARIABLE MIGRATION ==========
 // Auto-migrate legacy CLAWDBOT_* and MOLTBOT_* env vars to OPENCLAW_* for backward compatibility.
 // This ensures existing Railway deployments continue working after the rename.
@@ -690,40 +692,36 @@ app.get("/setup", requireSetupAuth, (_req, res) => {
   res.sendFile(path.join(process.cwd(), "src", "public", "setup.html"));
 });
 
-app.get("/setup/api/status", requireSetupAuth, async (_req, res) => {
-  // Resilient version check with timeout and fallback
-  let openclawVersion = "unknown";
+app.get("/setup/api/sheets/test", requireSetupAuth, async (_req, res) => {
   try {
-    const version = await runCmd(OPENCLAW_NODE, clawArgs(["--version"]), { timeoutMs: 5000 });
-    if (version.code === 0 && version.output?.trim()) {
-      openclawVersion = version.output.trim();
-    }
-  } catch (err) {
-    console.warn(`[status] Failed to get openclaw version: ${err.message}`);
-  }
+    const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
 
-  // Resilient channels help check with timeout and fallback
-  let channelsAddHelp = "";
-  try {
-    const channelsHelpResult = await runCmd(
-      OPENCLAW_NODE,
-      clawArgs(["channels", "add", "--help"]),
-      { timeoutMs: 5000 }
-    );
-    if (channelsHelpResult.code === 0) {
-      channelsAddHelp = channelsHelpResult.output;
+    if (!sheetId) {
+      return res.status(500).json({
+        ok: false,
+        error: "GOOGLE_SHEET_ID manquant dans Railway",
+      });
     }
-  } catch (err) {
-    console.warn(`[status] Failed to get channels help: ${err.message}`);
-  }
 
-  res.json({
-    configured: isConfigured(),
-    gatewayTarget: GATEWAY_TARGET,
-    openclawVersion,
-    channelsAddHelp,
-    authGroups: AUTH_GROUPS, // Use constant instead of inline definition
-  });
+    const sheets = await getSheetsClient();
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "Candidates_Master!A1:D5",
+    });
+
+    return res.json({
+      ok: true,
+      rows: response.data.values || [],
+      message: "Connexion Google Sheets OK",
+    });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      error: String(err.message || err),
+      hint: "Vérifie GOOGLE_SERVICE_ACCOUNT_JSON et GOOGLE_SHEET_ID dans Railway",
+    });
+  }
 });
 
 function buildOnboardArgs(payload) {
