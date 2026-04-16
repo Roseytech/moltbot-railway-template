@@ -698,7 +698,6 @@ app.post("/setup/api/sheets/check-access", requireSetupAuth, async (req, res) =>
 });
 
 function buildOnboardArgs(payload) {
-function buildOnboardArgs(payload) {
   const args = [
     "onboard",
     "--non-interactive",
