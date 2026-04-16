@@ -8,6 +8,8 @@ import express from "express";
 import httpProxy from "http-proxy";
 import * as tar from "tar";
 
+import { getSheetsClient } from "./googleSheets.js";
+
 // ========== ENVIRONMENT VARIABLE MIGRATION ==========
 // Auto-migrate legacy CLAWDBOT_* and MOLTBOT_* env vars to OPENCLAW_* for backward compatibility.
 // This ensures existing Railway deployments continue working after the rename.
@@ -683,6 +685,88 @@ app.post("/setup/api/sheets/check-access", requireSetupAuth, async (req, res) =>
       fields: "sheets(properties(title))",
     });
 
+    app.post("/setup/api/sheets/add-candidate", requireSetupAuth, async (req, res) => {
+  try {
+    const sheets = await getSheetsClient();
+    const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
+
+    if (!sheetId) {
+      return res.status(500).json({ ok: false, error: "GOOGLE_SHEET_ID manquant" });
+    }
+
+    const { full_name, linkedin_url = "", source = "Discord", notes = "" } = req.body || {};
+
+    if (!full_name?.trim()) {
+      return res.status(400).json({ ok: false, error: "full_name requis" });
+    }
+
+    // Lecture colonne A (candidate_id) + colonne E (linkedin_url)
+    const masterData = await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: "Candidates_Master!A:E",
+    });
+    const rows = masterData.data.values || [];
+
+    // Détection doublon linkedin_url
+    if (linkedin_url.trim()) {
+      const duplicate = rows.slice(1).find(
+        (row) => row[4] && row[4].trim().toLowerCase() === linkedin_url.trim().toLowerCase()
+      );
+      if (duplicate) {
+        return res.status(409).json({
+          ok: false,
+          error: `Doublon détecté — profil existant : ${duplicate[0]} (${duplicate[3]})`,
+        });
+      }
+    }
+
+    // Génération candidate_id depuis le vrai max des IDs existants
+    const existingIds = rows.slice(1).map((r) => r[0]).filter(Boolean);
+    const lastNum =
+      existingIds.length > 0
+        ? Math.max(...existingIds.map((id) => parseInt(id.replace("NT-", ""), 10) || 0))
+        : 0;
+    const newId = `NT-${String(lastNum + 1).padStart(3, "0")}`;
+
+    const today = new Date().toISOString().split("T")[0];
+    const nextActionDate = new Date(Date.now() + 2 * 86400000).toISOString().split("T")[0];
+
+    // Écriture Candidates_Master
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: "Candidates_Master!A:Z",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [[
+          newId, today, "Discord", full_name.trim(), linkedin_url.trim(),
+          "À qualifier", "À qualifier", "À qualifier", "À qualifier", "À qualifier",
+          "À qualifier", "À qualifier", "", "À qualifier", source,
+          0, "", "new", "medium", "", notes,
+          today, "Qualifier profil", nextActionDate, "Rosy", "not_sent",
+        ]],
+      },
+    });
+
+    // Écriture Automations_Log
+    const timestamp = new Date().toISOString().slice(0, 16).replace("T", " ");
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: sheetId,
+      range: "Automations_Log!A:G",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [[
+          timestamp, newId, "add_candidate", "Discord",
+          "Candidates_Master", "success", `Candidat créé : ${full_name.trim()}`,
+        ]],
+      },
+    });
+
+    return res.json({ ok: true, candidate_id: newId, full_name: full_name.trim() });
+
+  } catch (err) {
+    return res.status(500).json({ ok: false, error: err.message });
+  }
+});
     const titles = (meta.data.sheets || [])
       .map((s) => s?.properties?.title)
       .filter(Boolean);
