@@ -665,9 +665,6 @@ app.get("/setup/styles.css", requireSetupAuth, (_req, res) => {
 app.get("/setup", requireSetupAuth, (_req, res) => {
   res.sendFile(path.join(process.cwd(), "src", "public", "setup.html"));
 });
-app.get("/setup", requireSetupAuth, (_req, res) => {
-  res.sendFile(path.join(process.cwd(), "src", "public", "setup.html"));
-});
 
 app.post("/setup/api/sheets/check-access", requireSetupAuth, async (req, res) => {
   try {
@@ -685,7 +682,21 @@ app.post("/setup/api/sheets/check-access", requireSetupAuth, async (req, res) =>
       fields: "sheets(properties(title))",
     });
 
-    app.post("/setup/api/sheets/add-candidate", requireSetupAuth, async (req, res) => {
+    const titles = (meta.data.sheets || [])
+      .map((s) => s?.properties?.title)
+      .filter(Boolean);
+
+    if (!titles.includes(sheet)) {
+      return res.status(404).type("text/plain").send(`Sheet tab "${sheet}" not found`);
+    }
+
+    return res.type("text/plain").send("access ok");
+  } catch (err) {
+    return res.status(500).type("text/plain").send(String(err?.message || err));
+  }
+});
+
+app.post("/setup/api/sheets/add-candidate", requireSetupAuth, async (req, res) => {
   try {
     const sheets = await getSheetsClient();
     const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
@@ -700,14 +711,12 @@ app.post("/setup/api/sheets/check-access", requireSetupAuth, async (req, res) =>
       return res.status(400).json({ ok: false, error: "full_name requis" });
     }
 
-    // Lecture colonne A (candidate_id) + colonne E (linkedin_url)
     const masterData = await sheets.spreadsheets.values.get({
       spreadsheetId: sheetId,
       range: "Candidates_Master!A:E",
     });
     const rows = masterData.data.values || [];
 
-    // Détection doublon linkedin_url
     if (linkedin_url.trim()) {
       const duplicate = rows.slice(1).find(
         (row) => row[4] && row[4].trim().toLowerCase() === linkedin_url.trim().toLowerCase()
@@ -720,7 +729,6 @@ app.post("/setup/api/sheets/check-access", requireSetupAuth, async (req, res) =>
       }
     }
 
-    // Génération candidate_id depuis le vrai max des IDs existants
     const existingIds = rows.slice(1).map((r) => r[0]).filter(Boolean);
     const lastNum =
       existingIds.length > 0
@@ -731,7 +739,6 @@ app.post("/setup/api/sheets/check-access", requireSetupAuth, async (req, res) =>
     const today = new Date().toISOString().split("T")[0];
     const nextActionDate = new Date(Date.now() + 2 * 86400000).toISOString().split("T")[0];
 
-    // Écriture Candidates_Master
     await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
       range: "Candidates_Master!A:Z",
@@ -747,7 +754,6 @@ app.post("/setup/api/sheets/check-access", requireSetupAuth, async (req, res) =>
       },
     });
 
-    // Écriture Automations_Log
     const timestamp = new Date().toISOString().slice(0, 16).replace("T", " ");
     await sheets.spreadsheets.values.append({
       spreadsheetId: sheetId,
@@ -762,22 +768,8 @@ app.post("/setup/api/sheets/check-access", requireSetupAuth, async (req, res) =>
     });
 
     return res.json({ ok: true, candidate_id: newId, full_name: full_name.trim() });
-
   } catch (err) {
-    return res.status(500).json({ ok: false, error: err.message });
-  }
-});
-    const titles = (meta.data.sheets || [])
-      .map((s) => s?.properties?.title)
-      .filter(Boolean);
-
-    if (!titles.includes(sheet)) {
-      return res.status(404).type("text/plain").send(`Sheet tab "${sheet}" not found`);
-    }
-
-    return res.type("text/plain").send("access ok");
-  } catch (err) {
-    return res.status(500).type("text/plain").send(String(err?.message || err));
+    return res.status(500).json({ ok: false, error: err?.message || String(err) });
   }
 });
 
