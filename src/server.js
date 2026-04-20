@@ -8,7 +8,10 @@ import express from "express";
 import httpProxy from "http-proxy";
 import * as tar from "tar";
 
-import { getSheetsClient } from "./googleSheets.js";
+import {
+  getSheetsClient,
+  getAuditCroSheetsConfig,
+} from "./googleSheets.js";
 
 // ========== ENVIRONMENT VARIABLE MIGRATION ==========
 // Auto-migrate legacy CLAWDBOT_* and MOLTBOT_* env vars to OPENCLAW_* for backward compatibility.
@@ -770,6 +773,115 @@ app.post("/setup/api/sheets/add-candidate", requireSetupAuth, async (req, res) =
     return res.json({ ok: true, candidate_id: newId, full_name: full_name.trim() });
   } catch (err) {
     return res.status(500).json({ ok: false, error: err?.message || String(err) });
+  }
+});
+
+function normalizeSheetRows(input) {
+  if (!input) return [];
+
+  if (Array.isArray(input)) {
+    if (input.length === 0) return [];
+    return Array.isArray(input[0]) ? input : [input];
+  }
+
+  return [];
+}
+
+async function appendRowsToGoogleSheet({ spreadsheetId, sheetName, rows }) {
+  const normalizedRows = normalizeSheetRows(rows);
+
+  if (!spreadsheetId) {
+    throw new Error("Missing spreadsheetId");
+  }
+
+  if (!sheetName) {
+    throw new Error("Missing sheetName");
+  }
+
+  if (!normalizedRows.length) {
+    throw new Error("No rows provided");
+  }
+
+  const sheets = await getSheetsClient();
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: `${sheetName}!A:ZZ`,
+    valueInputOption: "USER_ENTERED",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: {
+      values: normalizedRows,
+    },
+  });
+
+  return { ok: true, appended: normalizedRows.length };
+}
+
+app.post("/setup/api/sheets/audit-cro/prestataires", requireSetupAuth, async (req, res) => {
+  try {
+    const { spreadsheetId, prestatairesSheetName } = getAuditCroSheetsConfig();
+    const rows = req.body?.rows ?? req.body?.values ?? req.body?.row;
+
+    const normalizedRows = normalizeSheetRows(rows);
+
+    if (!normalizedRows.length) {
+      return res.status(400).json({
+        ok: false,
+        error: "rows required: provide rows as array-of-arrays or one row array",
+      });
+    }
+
+    const result = await appendRowsToGoogleSheet({
+      spreadsheetId,
+      sheetName: prestatairesSheetName,
+      rows: normalizedRows,
+    });
+
+    return res.json({
+      ok: true,
+      target: "prestataires",
+      sheetName: prestatairesSheetName,
+      appended: result.appended,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      error: err?.message || String(err),
+    });
+  }
+});
+
+app.post("/setup/api/sheets/audit-cro/clients", requireSetupAuth, async (req, res) => {
+  try {
+    const { spreadsheetId, clientsSheetName } = getAuditCroSheetsConfig();
+    const rows = req.body?.rows ?? req.body?.values ?? req.body?.row;
+
+    const normalizedRows = normalizeSheetRows(rows);
+
+    if (!normalizedRows.length) {
+      return res.status(400).json({
+        ok: false,
+        error: "rows required: provide rows as array-of-arrays or one row array",
+      });
+    }
+
+    const result = await appendRowsToGoogleSheet({
+      spreadsheetId,
+      sheetName: clientsSheetName,
+      rows: normalizedRows,
+    });
+
+    return res.json({
+      ok: true,
+      target: "clients",
+      sheetName: clientsSheetName,
+      appended: result.appended,
+    });
+  } catch (err) {
+    return res.status(500).json({
+      ok: false,
+      error: err?.message || String(err),
+    });
   }
 });
 
