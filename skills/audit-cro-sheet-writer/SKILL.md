@@ -38,14 +38,13 @@ Do not write into:
 - Use `new` for `status` unless explicitly instructed otherwise
 
 ## API endpoints
-Use these routes for writing rows:
+Use these full public Railway URLs for writing rows:
 
 ### Prestataires
-POST `/setup/api/sheets/audit-cro/prestataires`
+POST `https://moltbot-railway-template-production-ffb6.up.railway.app/setup/api/sheets/audit-cro/prestataires`
 
 ### Clients finaux
-POST `/setup/api/sheets/audit-cro/clients`
-
+POST `https://moltbot-railway-template-production-ffb6.up.railway.app/setup/api/sheets/audit-cro/clients`
 ## Authentication
 Use setup authentication already configured for the OpenClaw environment.
 
