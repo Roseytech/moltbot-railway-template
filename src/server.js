@@ -8,10 +8,7 @@ import express from "express";
 import httpProxy from "http-proxy";
 import * as tar from "tar";
 
-import {
-  getSheetsClient,
-  getAuditCroSheetsConfig,
-} from "./googleSheets.js";
+import { getSheetsClient } from "./googleSheets.js";
 
 // ========== ENVIRONMENT VARIABLE MIGRATION ==========
 // Auto-migrate legacy CLAWDBOT_* and MOLTBOT_* env vars to OPENCLAW_* for backward compatibility.
@@ -672,11 +669,15 @@ app.get("/setup", requireSetupAuth, (_req, res) => {
 app.post("/setup/api/sheets/check-access", requireSetupAuth, async (req, res) => {
   try {
     const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
-    const sheet = String(req.body?.sheet || "Candidates_Master").trim();
+const sheet = String(req.body?.sheet || "").trim();
 
-    if (!sheetId) {
-      return res.status(500).type("text/plain").send("GOOGLE_SHEET_ID manquant");
-    }
+if (!sheetId) {
+  return res.status(500).type("text/plain").send("GOOGLE_SHEET_ID manquant");
+}
+
+if (!sheet) {
+  return res.status(400).type("text/plain").send("sheet manquante");
+}
 
     const sheets = await getSheetsClient();
 
@@ -696,83 +697,6 @@ app.post("/setup/api/sheets/check-access", requireSetupAuth, async (req, res) =>
     return res.type("text/plain").send("access ok");
   } catch (err) {
     return res.status(500).type("text/plain").send(String(err?.message || err));
-  }
-});
-
-app.post("/setup/api/sheets/add-candidate", requireSetupAuth, async (req, res) => {
-  try {
-    const sheets = await getSheetsClient();
-    const sheetId = process.env.GOOGLE_SHEET_ID?.trim();
-
-    if (!sheetId) {
-      return res.status(500).json({ ok: false, error: "GOOGLE_SHEET_ID manquant" });
-    }
-
-    const { full_name, linkedin_url = "", source = "Discord", notes = "" } = req.body || {};
-
-    if (!full_name?.trim()) {
-      return res.status(400).json({ ok: false, error: "full_name requis" });
-    }
-
-    const masterData = await sheets.spreadsheets.values.get({
-      spreadsheetId: sheetId,
-      range: "Candidates_Master!A:E",
-    });
-    const rows = masterData.data.values || [];
-
-    if (linkedin_url.trim()) {
-      const duplicate = rows.slice(1).find(
-        (row) => row[4] && row[4].trim().toLowerCase() === linkedin_url.trim().toLowerCase()
-      );
-      if (duplicate) {
-        return res.status(409).json({
-          ok: false,
-          error: `Doublon détecté — profil existant : ${duplicate[0]} (${duplicate[3]})`,
-        });
-      }
-    }
-
-    const existingIds = rows.slice(1).map((r) => r[0]).filter(Boolean);
-    const lastNum =
-      existingIds.length > 0
-        ? Math.max(...existingIds.map((id) => parseInt(id.replace("NT-", ""), 10) || 0))
-        : 0;
-    const newId = `NT-${String(lastNum + 1).padStart(3, "0")}`;
-
-    const today = new Date().toISOString().split("T")[0];
-    const nextActionDate = new Date(Date.now() + 2 * 86400000).toISOString().split("T")[0];
-
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: sheetId,
-      range: "Candidates_Master!A:Z",
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[
-          newId, today, "Discord", full_name.trim(), linkedin_url.trim(),
-          "À qualifier", "À qualifier", "À qualifier", "À qualifier", "À qualifier",
-          "À qualifier", "À qualifier", "", "À qualifier", source,
-          0, "", "new", "medium", "", notes,
-          today, "Qualifier profil", nextActionDate, "Rosy", "not_sent",
-        ]],
-      },
-    });
-
-    const timestamp = new Date().toISOString().slice(0, 16).replace("T", " ");
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: sheetId,
-      range: "Automations_Log!A:G",
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [[
-          timestamp, newId, "add_candidate", "Discord",
-          "Candidates_Master", "success", `Candidat créé : ${full_name.trim()}`,
-        ]],
-      },
-    });
-
-    return res.json({ ok: true, candidate_id: newId, full_name: full_name.trim() });
-  } catch (err) {
-    return res.status(500).json({ ok: false, error: err?.message || String(err) });
   }
 });
 
@@ -816,74 +740,6 @@ async function appendRowsToGoogleSheet({ spreadsheetId, sheetName, rows }) {
 
   return { ok: true, appended: normalizedRows.length };
 }
-
-app.post("/setup/api/sheets/audit-cro/prestataires", requireSetupAuth, async (req, res) => {
-  try {
-    const { spreadsheetId, prestatairesSheetName } = getAuditCroSheetsConfig();
-    const rows = req.body?.rows ?? req.body?.values ?? req.body?.row;
-
-    const normalizedRows = normalizeSheetRows(rows);
-
-    if (!normalizedRows.length) {
-      return res.status(400).json({
-        ok: false,
-        error: "rows required: provide rows as array-of-arrays or one row array",
-      });
-    }
-
-    const result = await appendRowsToGoogleSheet({
-      spreadsheetId,
-      sheetName: prestatairesSheetName,
-      rows: normalizedRows,
-    });
-
-    return res.json({
-      ok: true,
-      target: "prestataires",
-      sheetName: prestatairesSheetName,
-      appended: result.appended,
-    });
-  } catch (err) {
-    return res.status(500).json({
-      ok: false,
-      error: err?.message || String(err),
-    });
-  }
-});
-
-app.post("/setup/api/sheets/audit-cro/clients", requireSetupAuth, async (req, res) => {
-  try {
-    const { spreadsheetId, clientsSheetName } = getAuditCroSheetsConfig();
-    const rows = req.body?.rows ?? req.body?.values ?? req.body?.row;
-
-    const normalizedRows = normalizeSheetRows(rows);
-
-    if (!normalizedRows.length) {
-      return res.status(400).json({
-        ok: false,
-        error: "rows required: provide rows as array-of-arrays or one row array",
-      });
-    }
-
-    const result = await appendRowsToGoogleSheet({
-      spreadsheetId,
-      sheetName: clientsSheetName,
-      rows: normalizedRows,
-    });
-
-    return res.json({
-      ok: true,
-      target: "clients",
-      sheetName: clientsSheetName,
-      appended: result.appended,
-    });
-  } catch (err) {
-    return res.status(500).json({
-      ok: false,
-      error: err?.message || String(err),
-    });
-  }
-});
 
 function buildOnboardArgs(payload) {
   const args = [
