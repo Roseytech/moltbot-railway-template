@@ -12,24 +12,36 @@ import { getSheetsClient } from "./googleSheets.js";
 
 function ensureBraveBxInstalled() {
   try {
-    process.env.PATH = `/data/bin:${process.env.PATH || ""}`;
+    process.env.PATH = `/data/bin:/root/.local/bin:/home/node/.local/bin:${process.env.PATH || ""}`;
 
     if (fs.existsSync("/data/bin/bx")) {
       console.log("[brave] bx already installed at /data/bin/bx");
       return;
     }
 
-    console.log("[brave] installing bx into /data/bin...");
+    console.log("[brave] installing bx into persistent path...");
     fs.mkdirSync("/data/bin", { recursive: true });
 
     childProcess.execFileSync("sh", [
       "-lc",
-      "curl -fsSL https://raw.githubusercontent.com/brave/brave-search-cli/main/scripts/install.sh -o /tmp/install-bx.sh && BX_INSTALL_DIR=/data/bin sh /tmp/install-bx.sh"
+      [
+        "curl -fsSL https://raw.githubusercontent.com/brave/brave-search-cli/main/scripts/install.sh -o /tmp/install-bx.sh",
+        "sh /tmp/install-bx.sh",
+        "BX_PATH=$(command -v bx || true)",
+        "echo \"[brave] detected bx at: $BX_PATH\"",
+        "if [ -z \"$BX_PATH\" ]; then find / -type f -name bx 2>/dev/null | head -20; fi",
+        "BX_PATH=$(command -v bx || find / -type f -name bx 2>/dev/null | head -1)",
+        "if [ -z \"$BX_PATH\" ]; then echo '[brave] bx binary not found after install'; exit 1; fi",
+        "cp \"$BX_PATH\" /data/bin/bx",
+        "chmod +x /data/bin/bx",
+        "/data/bin/bx --help >/dev/null",
+        "echo '[brave] bx installed and verified at /data/bin/bx'"
+      ].join(" && ")
     ], {
       stdio: "inherit",
       env: {
         ...process.env,
-        BX_INSTALL_DIR: "/data/bin"
+        PATH: `/data/bin:/root/.local/bin:/home/node/.local/bin:${process.env.PATH || ""}`
       }
     });
 
