@@ -620,6 +620,59 @@ async function probeGateway() {
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
+app.post("/setup/api/sheets/audit-cro/prestataires", express.json(), async (req, res) => {
+  try {
+    const { values } = req.body;
+
+    if (!Array.isArray(values)) {
+      return res.status(400).json({ success: false, error: "values must be an array" });
+    }
+
+    const sheets = await getSheetsClient();
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
+      range: "Prestataires_Audit_CRO!A:Z",
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: {
+        values: [values],
+      },
+    });
+
+    res.json({ success: true, tab: "Prestataires_Audit_CRO" });
+  } catch (error) {
+    console.error("[audit-cro/prestataires] Google Sheets append failed:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+app.post("/setup/api/sheets/audit-cro/clients", express.json(), async (req, res) => {
+  try {
+    const { values } = req.body;
+
+    if (!Array.isArray(values)) {
+      return res.status(400).json({ success: false, error: "values must be an array" });
+    }
+
+    const sheets = await getSheetsClient();
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
+      range: "Clients_Finaux_Audit_CRO!A:Z",
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: {
+        values: [values],
+      },
+    });
+
+    res.json({ success: true, tab: "Clients_Finaux_Audit_CRO" });
+  } catch (error) {
+    console.error("[audit-cro/clients] Google Sheets append failed:", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
 
 app.get("/setup/healthz", (_req, res) => res.json({ ok: true }));
 
