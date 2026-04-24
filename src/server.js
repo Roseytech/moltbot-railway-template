@@ -10,6 +10,37 @@ import * as tar from "tar";
 
 import { getSheetsClient } from "./googleSheets.js";
 
+function ensureBraveBxInstalled() {
+  try {
+    process.env.PATH = `/data/bin:${process.env.PATH || ""}`;
+
+    if (fs.existsSync("/data/bin/bx")) {
+      console.log("[brave] bx already installed at /data/bin/bx");
+      return;
+    }
+
+    console.log("[brave] installing bx into /data/bin...");
+    fs.mkdirSync("/data/bin", { recursive: true });
+
+    childProcess.execFileSync("sh", [
+      "-lc",
+      "curl -fsSL https://raw.githubusercontent.com/brave/brave-search-cli/main/scripts/install.sh -o /tmp/install-bx.sh && BX_INSTALL_DIR=/data/bin sh /tmp/install-bx.sh"
+    ], {
+      stdio: "inherit",
+      env: {
+        ...process.env,
+        BX_INSTALL_DIR: "/data/bin"
+      }
+    });
+
+    console.log("[brave] bx install complete");
+  } catch (error) {
+    console.error("[brave] bx install failed:", error);
+  }
+}
+
+ensureBraveBxInstalled();
+
 // ========== ENVIRONMENT VARIABLE MIGRATION ==========
 // Auto-migrate legacy CLAWDBOT_* and MOLTBOT_* env vars to OPENCLAW_* for backward compatibility.
 // This ensures existing Railway deployments continue working after the rename.
