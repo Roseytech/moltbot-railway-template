@@ -69,6 +69,18 @@ For each provider lead:
 
 If required data is missing, do not write. Return the reason.
 
+## Empty write rule
+
+Never call the Railway endpoint with empty rows or empty values.
+
+If no qualified lead is prepared for writing:
+- do not call exec curl
+- do not call the Railway endpoint
+- return rows added: 0
+- explain that no qualified candidates were found
+
+A write request is allowed only when at least one complete values array is ready.
+
 ## Output after writing
 
 After writing, return only:
@@ -77,3 +89,4 @@ After writing, return only:
 - skipped or failed companies with reason
 
 The count must match the number of companies listed.
+
