@@ -1,6 +1,6 @@
 ---
 name: audit-cro-client-sourcing
-description:  Mandatory skill for every Audit CRO client-final run.
+description: Mandatory controller for every Audit CRO sourcing run. Prevents silent background tasks, enforces bounded execution, and requires exact write summaries.
 ---
 
 # Audit CRO Client Sourcing
