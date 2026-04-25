@@ -1,6 +1,6 @@
 ---
-name: audit_cro_client_sourcing
-description: Source and verify client-final leads for the Audit CRO business.
+name: audit-cro-client-sourcing
+description:  Mandatory skill for every Audit CRO client-final run.
 ---
 
 # Audit CRO Client Sourcing
