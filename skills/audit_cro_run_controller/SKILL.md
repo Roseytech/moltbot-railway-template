@@ -19,6 +19,22 @@ This skill prevents:
 - inconsistent row counts
 - claiming writes without confirmed success
 
+## No mid-run confirmation rule
+
+During a bounded run, do not ask for confirmation to continue a validation step that is already inside the approved limits.
+
+If the user approved or launched a run with candidate and row limits, continue until:
+- the row limit is reached
+- the candidate limit is reached
+- or no valid candidate remains
+
+Do not ask:
+- Shall I continue?
+- Should I proceed?
+- Do you want me to check further?
+
+Only ask a question if continuing would exceed the approved limits or change the target ICP, market, tab, or writing rules.
+
 ## Default run limits
 
 For easy ICPs:
