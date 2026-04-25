@@ -1,6 +1,6 @@
 ---
-name: audit_cro_run_controller
-description: Control bounded Audit CRO sourcing runs, prevent silent background tasks, enforce write summaries, and stop open-ended sourcing.
+name: audit-cro-run-controller
+description: Mandatory controller for every Audit CRO sourcing runs, prevent silent background tasks, enforce write summaries, and stop open-ended sourcing.
 ---
 
 # Audit CRO Run Controller
