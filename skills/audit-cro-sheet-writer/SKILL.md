@@ -1,6 +1,6 @@
 ---
-name: audit_cro_sheet_writer
-description: Write verified Audit CRO leads to the live Google Sheet using exec curl only.
+name: audit-cro-sheet-writer
+description: Mandatory writing skill for appending Audit CRO leads to the live Google Sheet using exec curl only.
 ---
 
 # Audit CRO Sheet Writer
