@@ -198,7 +198,25 @@ If no public email is visible, skip the lead.
 For law firms, if the user explicitly allows contact forms, email may be left blank. Otherwise, public email remains mandatory.
 
 ---
+## Mandatory CRO friction rule
 
+Observable CRO friction is mandatory for every client-final lead.
+
+A public email alone is not enough to qualify a lead.
+
+If CRO friction is none, unclear, or not observed:
+- do not append the lead
+- skip the company
+- report reason: no observable CRO friction
+
+A client-final lead is eligible for append only if:
+- public email is visible
+- official website is available
+- client-final business is confirmed
+- selected ICP is confirmed
+- observable CRO friction is present
+- no duplicate exists
+  
 ## CRO friction signals
 
 A valid lead should show at least 2 observable CRO friction signals.
