@@ -725,18 +725,21 @@ app.post("/setup/api/sheets/audit-cro/prestataires", express.json(), async (req,
     }
 
     const sheets = await getSheetsClient();
+    console.log("[audit-cro/prestataires] incoming values:", values);
 const duplicate = await isDuplicateAuditCroRow(
   sheets,
   process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
-  "Clients_Finaux_Audit_CRO!A:Z",
+  "Prestataires_Audit_CRO!A:Z",
   values
 );
+
+console.log("[audit-cro/prestataires] duplicate result:", duplicate);
 
 if (duplicate) {
   return res.status(409).json({
     success: false,
     duplicate: true,
-    tab: "Clients_Finaux_Audit_CRO",
+    tab: "Prestataires_Audit_CRO",
     message: "Duplicate detected. Row was not added."
   });
 }
@@ -765,9 +768,29 @@ app.post("/setup/api/sheets/audit-cro/clients", express.json(), async (req, res)
       return res.status(400).json({ success: false, error: "values must be an array" });
     }
 
-    const sheets = await getSheetsClient();
+  const sheets = await getSheetsClient();
 
-    await sheets.spreadsheets.values.append({
+console.log("[audit-cro/clients] incoming values:", values);
+
+const duplicate = await isDuplicateAuditCroRow(
+  sheets,
+  process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
+  "Clients_Finaux_Audit_CRO!A:Z",
+  values
+);
+
+console.log("[audit-cro/clients] duplicate result:", duplicate);
+
+if (duplicate) {
+  return res.status(409).json({
+    success: false,
+    duplicate: true,
+    tab: "Clients_Finaux_Audit_CRO",
+    message: "Duplicate detected. Row was not added."
+  });
+}
+
+await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
       range: "Clients_Finaux_Audit_CRO!A:Z",
       valueInputOption: "RAW",
