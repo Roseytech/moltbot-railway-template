@@ -663,6 +663,59 @@ async function probeGateway() {
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
+function normalizeAuditCroValue(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .replace(/\/$/, "");
+}
+
+async function isDuplicateAuditCroRow(sheets, spreadsheetId, range, values) {
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range,
+  });
+
+  const rows = response.data.values || [];
+
+  // Le sheet a une ligne titre + une ligne d'en-têtes, donc on ignore les 2 premières lignes
+  const dataRows = rows.slice(2);
+
+  const newCompanyName = normalizeAuditCroValue(values[2]);
+  const newWebsite = normalizeAuditCroValue(values[3]);
+  const newLinkedinUrl = normalizeAuditCroValue(values[4]);
+  const newCountry = normalizeAuditCroValue(values[10]);
+
+  return dataRows.some((row) => {
+    const existingCompanyName = normalizeAuditCroValue(row[2]);
+    const existingWebsite = normalizeAuditCroValue(row[3]);
+    const existingLinkedinUrl = normalizeAuditCroValue(row[4]);
+    const existingCountry = normalizeAuditCroValue(row[10]);
+
+    if (newWebsite && existingWebsite && newWebsite === existingWebsite) {
+      return true;
+    }
+
+    if (newLinkedinUrl && existingLinkedinUrl && newLinkedinUrl === existingLinkedinUrl) {
+      return true;
+    }
+
+    if (
+      newCompanyName &&
+      existingCompanyName &&
+      newCountry &&
+      existingCountry &&
+      newCompanyName === existingCompanyName &&
+      newCountry === existingCountry
+    ) {
+      return true;
+    }
+
+    return false;
+  });
+}
 app.post("/setup/api/sheets/audit-cro/prestataires", express.json(), async (req, res) => {
   try {
     const { values } = req.body;
@@ -672,7 +725,21 @@ app.post("/setup/api/sheets/audit-cro/prestataires", express.json(), async (req,
     }
 
     const sheets = await getSheetsClient();
+const duplicate = await isDuplicateAuditCroRow(
+  sheets,
+  process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
+  "Clients_Finaux_Audit_CRO!A:Z",
+  values
+);
 
+if (duplicate) {
+  return res.status(409).json({
+    success: false,
+    duplicate: true,
+    tab: "Clients_Finaux_Audit_CRO",
+    message: "Duplicate detected. Row was not added."
+  });
+}
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
       range: "Prestataires_Audit_CRO!A:Z",
