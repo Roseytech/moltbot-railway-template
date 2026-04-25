@@ -94,6 +94,35 @@ Use only if the user asks to expand:
 
 ---
 
+## Segment discipline
+
+Always follow the exact segment requested by the user.
+
+If the user asks for UK accounting / tax firms:
+- source only UK accounting / tax firms
+- do not include law firms
+- do not include HR firms
+- do not include generic advisory firms unless clearly accounting / tax-related
+- do not include CRO, marketing, web, growth, SEO, PPC, or lead-generation providers
+
+If the user asks for US CPA / accounting firms:
+- source only CPA, accounting, bookkeeping, payroll, or tax advisory firms
+- do not include unrelated professional services
+
+If the user asks for law firms:
+- source only law firms
+- do not include accounting firms or other businesses
+
+If the user asks for architecture / engineering / design-build firms:
+- source only architecture, engineering, design-build, or closely related professional firms
+- do not include cleaning, property maintenance, building services, or general construction service companies unless explicitly requested
+
+Do not expand the ICP unless the user explicitly asks.
+
+When in doubt, skip.
+
+---
+
 ## Avoid
 
 Do not retain:
@@ -107,8 +136,16 @@ Do not retain:
 - SEO agencies
 - PPC agencies
 - software vendors
+- directories
+- marketplaces
+- media websites
+- course sellers
 - dropshipping stores
 - generic Shopify micro-stores
+- cleaning companies
+- building services companies
+- property services companies
+- unrelated construction services companies
 - very small solo operators with weak commercial value
 - inactive or suspicious websites
 - very large corporate firms with long enterprise sales cycles
@@ -124,10 +161,10 @@ A lead is valid only if all mandatory criteria are met:
 
 - official website loads
 - company is based in the US or UK
-- company is a client-final business, not a provider/vendor
-- public email is visible
+- company is a client-final business, not a provider / vendor / agency
+- public email is visible, unless the user explicitly relaxes this rule
 - email source URL is available
-- sector matches the priority ICP
+- sector matches the selected ICP
 - website shows observable CRO friction
 - company looks established enough to potentially pay for an audit
 - no duplicate exists based on company name, website, LinkedIn URL, or email
@@ -138,7 +175,7 @@ If any mandatory criterion is missing, skip the lead.
 
 ## Email rule
 
-Public email is mandatory for this phase.
+Public email is mandatory by default.
 
 Only accept an email if it is visible on at least one of these sources:
 
@@ -171,7 +208,7 @@ Examples:
 - no booking link
 - no Calendly or direct appointment flow
 - generic “Contact us” CTA only
-- phone/email only conversion path
+- phone / email only conversion path
 - contact form hidden or weak
 - no clear consultation CTA
 - services are numerous but poorly structured
@@ -211,7 +248,7 @@ For accounting / tax:
 For law firms:
 - business law
 - corporate law
-- immigration
+- immigration law
 - employment law
 - tax law
 - commercial litigation
@@ -260,6 +297,12 @@ Preferred batch size:
 - 5 leads for difficult segments
 - 10 leads for easier segments like UK accounting or US CPA firms
 
+Default sourcing limits:
+- for easy ICPs: check up to 20 candidates, append up to 10
+- for difficult ICPs: check up to 15 candidates, append up to 5
+
+Never run open-ended searches.
+
 Before writing:
 - check whether the company already exists in the sheet
 - compare company_name, website, LinkedIn URL, and email
@@ -278,6 +321,8 @@ Default order:
 5. architecture / engineering / design-build firms
 6. HR consulting firms
 7. business advisory / consulting firms
+
+Do not source all ICPs at once. Follow the exact segment requested by the user.
 
 ---
 
@@ -375,7 +420,7 @@ Search patterns:
 A lead is valid only if:
 
 - official website loads
-- public email is visible
+- public email is visible, unless the user explicitly relaxes this rule
 - email source URL is provided
 - company is based in the US or UK
 - client-final business is confirmed
@@ -385,6 +430,8 @@ A lead is valid only if:
 - no duplicate exists in the current sheet
 
 If the source is only a directory, verify through the official website when possible.
+
+If the company does not clearly match the requested ICP, skip it.
 
 ---
 
@@ -465,8 +512,8 @@ Map fields as follows:
 - priority score -> icp_fit
 - short business rationale -> why_fit
 - email source URL and/or source directory URL -> source
-- OpenClaw -> added_by
-- to_review -> status
+- openclaw -> added_by
+- new -> status
 
 If multiple source URLs are useful, put the most important verification source first.
 
@@ -476,11 +523,18 @@ If multiple source URLs are useful, put the most important verification source f
 
 Return candidates for review before writing unless the user explicitly approves writing.
 
-If the user says “append”, “write”, “add to the sheet”, “proceed”, “yes”, or gives direct approval, then append directly using the Audit CRO Sheet Writer / Railway endpoint.
+If the user says “append”, “write”, “add to the sheet”, “proceed”, “yes”, “go”, “continue”, or gives direct approval, then append directly using the Audit CRO Sheet Writer / Railway endpoint.
 
 Do not ask for approval again once the user has approved writing.
 
 Do not return another review list before writing if the user already approved writing.
+
+Do not say that rows were added unless the write action returned success.
+
+If the endpoint returns duplicate, HTTP 409, or any error:
+- do not retry elsewhere
+- do not bypass the endpoint
+- report the skipped or failed row
 
 ---
 
@@ -492,7 +546,36 @@ After writing rows, return only:
 - companies added
 - skipped companies with reason
 
+The count must match the number of companies listed.
+
+Bad output example:
+- Rows added: 8
+- then listing 9 companies
+
+This is forbidden.
+
+If 9 companies were appended, say 9.
+
+If 8 companies were appended, list only 8.
+
 If there is any inconsistency between attempted rows and successfully written rows, clearly state it.
+
+---
+
+## Background / async behavior
+
+Do not say:
+- “I will notify you”
+- “I will update you later”
+- “please hold on”
+- “the sub-agent is running”
+- “I will report upon completion”
+
+Do not run silent background-style tasks.
+
+Complete the task in the current session as far as possible and return the result immediately.
+
+If a task is still in progress, report current progress instead of waiting silently.
 
 ---
 
