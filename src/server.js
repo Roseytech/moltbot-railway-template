@@ -375,10 +375,11 @@ async function waitForGatewayReady(opts = {}) {
   const start = Date.now();
   const endpoints = ["/openclaw", "/openclaw", "/", "/health"];
 
-  while (Date.now() - start < timeoutMs) {
+  while ((Date.now() - start) < timeoutMs) {
     for (const endpoint of endpoints) {
       try {
         const res = await fetch(`${GATEWAY_TARGET}${endpoint}`, { method: "GET" });
+
         if (res) {
           const elapsed = ((Date.now() - start) / 1000).toFixed(1);
           console.log(`[gateway] ready at ${endpoint} (${elapsed}s elapsed)`);
@@ -389,6 +390,7 @@ async function waitForGatewayReady(opts = {}) {
         // not ready, try next endpoint
       }
     }
+
     await sleep(250);
   }
   const elapsed = ((Date.now() - start) / 1000).toFixed(1);
