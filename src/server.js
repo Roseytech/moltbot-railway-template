@@ -978,77 +978,84 @@ app.post('/setup/api/tools/prospeo/enrich-person', async (req, res) => {
 
     const responseText = await response.text();
 
-   let parsed;
-try {
-  parsed = JSON.parse(responseText);
-} catch (error) {
-  parsed = { raw_response: responseText };
-}
+    let parsed;
+    try {
+      parsed = JSON.parse(responseText);
+    } catch (error) {
+      parsed = { raw_response: responseText };
+    }
 
-if (!response.ok) {
-  return res.status(response.status).json({
-    success: false,
-    tool: 'prospeo',
-    status: response.status,
-    error: 'Prospeo API HTTP request failed.',
-    response: parsed
-  });
-}
+    if (!response.ok) {
+      return res.status(response.status).json({
+        success: false,
+        tool: 'prospeo',
+        status: response.status,
+        error: 'Prospeo API HTTP request failed.',
+        response: parsed
+      });
+    }
 
-// Prospeo can return HTTP 200 with { error: true }
-if (parsed && parsed.error === true) {
-  return res.status(200).json({
-    success: false,
-    tool: 'prospeo',
-    status: response.status,
-    error_code: parsed.error_code || 'PROSPEO_ERROR',
-    response: parsed
-  });
-}
+    if (parsed && parsed.error === true) {
+      return res.status(200).json({
+        success: false,
+        tool: 'prospeo',
+        status: response.status,
+        error_code: parsed.error_code || 'PROSPEO_ERROR',
+        response: parsed
+      });
+    }
 
-const person = parsed.person || {};
-const company = parsed.company || {};
-const emailObject = person.email || {};
+    const person = parsed.person || {};
+    const company = parsed.company || {};
+    const emailObject = person.email || {};
 
-const selectedEmail =
-  emailObject.revealed === true && emailObject.email
-    ? emailObject.email
-    : '';
+    const selectedEmail =
+      emailObject.revealed === true && emailObject.email
+        ? emailObject.email
+        : '';
 
-const verificationStatus =
-  emailObject.status === 'VERIFIED'
-    ? 'verified'
-    : selectedEmail
-      ? 'risky'
-      : 'no_email_found';
+    const verificationStatus =
+      emailObject.status === 'VERIFIED'
+        ? 'verified'
+        : selectedEmail
+          ? 'risky'
+          : 'no_email_found';
 
-return res.status(200).json({
-  success: true,
-  tool: 'prospeo',
-  status: response.status,
-  selected_email: selectedEmail,
-  verification_status: verificationStatus,
-  email_status: emailObject.status || '',
-  email_mx_provider: emailObject.email_mx_provider || '',
-  person: {
-    first_name: person.first_name || '',
-    last_name: person.last_name || '',
-    full_name: person.full_name || '',
-    linkedin_url: person.linkedin_url || '',
-    current_job_title: person.current_job_title || ''
-  },
-  company: {
-    name: company.name || '',
-    website: company.website || '',
-    domain: company.domain || '',
-    linkedin_url: company.linkedin_url || '',
-    industry: company.industry || '',
-    employee_range: company.employee_range || '',
-    city: company.location?.city || '',
-    state: company.location?.state || '',
-    country: company.location?.country || ''
-  },
-  raw_response: parsed
+    return res.status(200).json({
+      success: true,
+      tool: 'prospeo',
+      status: response.status,
+      selected_email: selectedEmail,
+      verification_status: verificationStatus,
+      email_status: emailObject.status || '',
+      email_mx_provider: emailObject.email_mx_provider || '',
+      person: {
+        first_name: person.first_name || '',
+        last_name: person.last_name || '',
+        full_name: person.full_name || '',
+        linkedin_url: person.linkedin_url || '',
+        current_job_title: person.current_job_title || ''
+      },
+      company: {
+        name: company.name || '',
+        website: company.website || '',
+        domain: company.domain || '',
+        linkedin_url: company.linkedin_url || '',
+        industry: company.industry || '',
+        employee_range: company.employee_range || '',
+        city: company.location?.city || '',
+        state: company.location?.state || '',
+        country: company.location?.country || ''
+      },
+      raw_response: parsed
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      tool: 'prospeo',
+      error: error.message || 'Unknown Prospeo server error.'
+    });
+  }
 });
 
 app.get("/setup/healthz", (_req, res) => res.json({ ok: true }));
