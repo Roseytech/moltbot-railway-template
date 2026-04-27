@@ -884,6 +884,173 @@ app.post("/setup/api/sheets/audit-cro/clients", express.json(), async (req, res)
   }
 });
 
+// ===============================
+// Prospeo API helpers - Audit CRO
+// ===============================
+
+const PROSPEO_API_BASE = 'https://api.prospeo.io';
+
+function getProspeoApiKey() {
+  const key = process.env.PROSPEO_API_KEY;
+  return key && key.trim() ? key.trim() : null;
+}
+
+// Local status check only.
+// This checks whether Railway exposes PROSPEO_API_KEY to server.js.
+// It does not call Prospeo and does not consume credits.
+app.post('/setup/api/tools/prospeo/status', async (req, res) => {
+  const apiKey = getProspeoApiKey();
+
+  if (!apiKey) {
+    return res.status(500).json({
+      success: false,
+      tool: 'prospeo',
+      configured: false,
+      message: 'PROSPEO_API_KEY is missing from Railway environment variables.'
+    });
+  }
+
+  return res.status(200).json({
+    success: true,
+    tool: 'prospeo',
+    configured: true,
+    message: 'PROSPEO_API_KEY is available in server.js environment.'
+  });
+});
+
+// Prospeo enrich-person fallback.
+// Use only after lead qualification, website review, MX/pattern logic and Hunter.
+// This request may consume Prospeo credits if Prospeo returns enrichment data.
+app.post('/setup/api/tools/prospeo/enrich-person', async (req, res) => {
+  try {
+    const apiKey = getProspeoApiKey();
+
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        tool: 'prospeo',
+        error: 'PROSPEO_API_KEY is missing from Railway environment variables.'
+      });
+    }
+
+    const body = req.body || {};
+    const data = body.data || {};
+
+    const hasName =
+      data.full_name ||
+      (data.first_name && data.last_name);
+
+    const hasCompanyContext =
+      data.company_website ||
+      data.company_name ||
+      data.linkedin_url;
+
+    if (!hasName) {
+      return res.status(400).json({
+        success: false,
+        tool: 'prospeo',
+        error: 'Missing required person name. Provide full_name or first_name + last_name.'
+      });
+    }
+
+    if (!hasCompanyContext) {
+      return res.status(400).json({
+        success: false,
+        tool: 'prospeo',
+        error: 'Missing company context. Provide company_website, company_name, or linkedin_url.'
+      });
+    }
+
+    const payload = {
+      only_verified_email: body.only_verified_email !== false,
+      enrich_mobile: false,
+      data
+    };
+
+    const response = await fetch(`${PROSPEO_API_BASE}/enrich-person`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-KEY': apiKey
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const responseText = await response.text();
+
+   let parsed;
+try {
+  parsed = JSON.parse(responseText);
+} catch (error) {
+  parsed = { raw_response: responseText };
+}
+
+if (!response.ok) {
+  return res.status(response.status).json({
+    success: false,
+    tool: 'prospeo',
+    status: response.status,
+    error: 'Prospeo API HTTP request failed.',
+    response: parsed
+  });
+}
+
+// Prospeo can return HTTP 200 with { error: true }
+if (parsed && parsed.error === true) {
+  return res.status(200).json({
+    success: false,
+    tool: 'prospeo',
+    status: response.status,
+    error_code: parsed.error_code || 'PROSPEO_ERROR',
+    response: parsed
+  });
+}
+
+const person = parsed.person || {};
+const company = parsed.company || {};
+const emailObject = person.email || {};
+
+const selectedEmail =
+  emailObject.revealed === true && emailObject.email
+    ? emailObject.email
+    : '';
+
+const verificationStatus =
+  emailObject.status === 'VERIFIED'
+    ? 'verified'
+    : selectedEmail
+      ? 'risky'
+      : 'no_email_found';
+
+return res.status(200).json({
+  success: true,
+  tool: 'prospeo',
+  status: response.status,
+  selected_email: selectedEmail,
+  verification_status: verificationStatus,
+  email_status: emailObject.status || '',
+  email_mx_provider: emailObject.email_mx_provider || '',
+  person: {
+    first_name: person.first_name || '',
+    last_name: person.last_name || '',
+    full_name: person.full_name || '',
+    linkedin_url: person.linkedin_url || '',
+    current_job_title: person.current_job_title || ''
+  },
+  company: {
+    name: company.name || '',
+    website: company.website || '',
+    domain: company.domain || '',
+    linkedin_url: company.linkedin_url || '',
+    industry: company.industry || '',
+    employee_range: company.employee_range || '',
+    city: company.location?.city || '',
+    state: company.location?.state || '',
+    country: company.location?.country || ''
+  },
+  raw_response: parsed
+});
+
 app.get("/setup/healthz", (_req, res) => res.json({ ok: true }));
 
 app.get("/healthz", async (_req, res) => {
