@@ -1,6 +1,6 @@
 ---
 name: audit-cro-client-sourcing
-description: Mandatory controller for Audit CRO final-client sourcing runs. Enforces bounded execution, exact ICP discipline, email enrichment logic, and correct Clients_Finaux_Audit_CRO mapping.
+description: Mandatory controller for Audit CRO final-client sourcing runs. Enforces bounded execution, exact ICP discipline, Tavily discovery, MX/pattern checks, Hunter Free email lookup, Prospeo fallback, and correct Clients_Finaux_Audit_CRO mapping.
 ---
 
 # Audit CRO Client Sourcing
@@ -47,6 +47,46 @@ Use these market values only:
 
 ---
 
+---
+
+## Tool stack for final-client sourcing
+
+Use the following stack in this exact order:
+
+1. Tavily for discovery and web verification
+2. Official website review
+3. MX lookup and email pattern detection
+4. Hunter Free for conservative email lookup
+5. Prospeo enrich-person as fallback only
+
+Tavily is the primary sourcing and verification tool.
+
+Hunter is not a sourcing tool. Hunter is only used after a company is already qualified and when a reliable contact name plus domain are available.
+
+Prospeo is not a sourcing tool. Prospeo is only used as fallback enrichment when:
+- the lead is already qualified
+- Hunter returned no usable result
+- only weak email patterns exist
+- a contact name exists but no reliable email is available
+
+Do not use Prospeo before Tavily, website review, MX check, and Hunter logic.
+
+Do not use deprecated Prospeo endpoints.
+
+Allowed Prospeo endpoint:
+- /enrich-person
+
+Forbidden Prospeo endpoints:
+- /email-finder
+- /domain-search
+- /email-verifier
+- /social-url-enrichment
+
+Default enrichment mode:
+- conservative
+- low volume
+- qualified leads only
+  
 ## Priority ICP
 
 ### Priority 1
@@ -193,21 +233,31 @@ Do not invent emails.
 Use this workflow:
 
 1. Check the official website first.
-2. Check the contact page, team page, footer, privacy page, and about page.
-3. If a public email is visible, capture it in `email`.
+2. Check the contact page, team page, footer, privacy page, terms page, and about page.
+3. If a public email is visible on an official source, capture it in `email`.
 4. If no public email is visible, leave `email` blank.
-5. If a reliable domain and contact name are available, inferred email patterns may be placed in:
+5. Check MX only when the domain appears reliable and active.
+6. If MX is valid, set `verification_status` to `domain_mx_ok` unless a stronger status applies.
+7. If a reliable contact name and domain are available, infer possible email patterns only when there is enough evidence.
+8. Inferred email patterns may be placed in:
    - `email_guess_1`
    - `email_guess_2`
    - `email_guess_3`
-6. Do not treat an inferred pattern as verified.
-7. If one email is reliable enough for outreach, put it in `selected_email`.
-8. If no reliable email can be selected, leave `selected_email` blank.
-9. If Prospeo enrichment is needed, set `prospeo_needed` to `yes`.
-10. If no Prospeo enrichment is needed, set `prospeo_needed` to `no`.
-11. Always set `verification_status`.
-12. Always set `source_tool`.
-13. Add `email_source_url` when an email, contact page, domain source, or pattern source is available.
+9. Do not treat an inferred pattern as verified.
+10. Use Hunter Free only when:
+   - the company is already qualified
+   - the domain is reliable
+   - MX appears valid
+   - contact name is available
+11. If Hunter returns a strong email with acceptable confidence, place it in `selected_email`.
+12. If Hunter returns a weak, risky, or accept-all result, do not mark it as verified.
+13. If Hunter returns no usable result, set `prospeo_needed` to `yes` when the lead is valuable enough.
+14. Use Prospeo only as fallback enrichment.
+15. If Prospeo returns a verified email, place it in `selected_email`.
+16. If no reliable email can be selected, leave `selected_email` blank.
+17. Always set `verification_status`.
+18. Always set `source_tool`.
+19. Add `email_source_url` when an email, contact page, domain source, Hunter source, Prospeo source, or pattern source is available.
 
 Accepted email sources:
 - official website
@@ -215,7 +265,8 @@ Accepted email sources:
 - official team page
 - official public profile
 - trusted professional directory
-- Prospeo, only if used intentionally
+- Hunter, only after qualification
+- Prospeo, only as fallback
 - MX/domain check, only for domain-level validation
 
 Do not use emails from suspicious, scraped, or low-quality sources.
@@ -248,10 +299,17 @@ Definitions:
 
 ## Prospeo logic
 
+Prospeo is fallback only.
+
+Do not use Prospeo to source companies.
+
+Do not use Prospeo for weak leads.
+
 Set `prospeo_needed` to:
 
 - `yes` if no reliable email is found
 - `yes` if only weak pattern guesses exist
+- `yes` if Hunter returns no usable result
 - `yes` if a contact name exists but email is missing
 - `no` if a reliable selected email exists
 - `no` if the lead should be rejected and no enrichment is worth spending
@@ -260,6 +318,26 @@ Use only:
 
 - yes
 - no
+
+When Prospeo is used, use only:
+
+- endpoint: /enrich-person
+- only_verified_email: true
+- company_website when available
+- full_name when available
+- first_name and last_name when available
+
+Do not enrich phone numbers.
+
+Do not enrich mobile numbers.
+
+Do not use Prospeo if:
+- the company is not qualified
+- the CRO friction is weak or unclear
+- the ICP fit is low
+- the company is outside US or UK
+- the website does not load
+- the lead is a duplicate
 
 ---
 
@@ -668,9 +746,62 @@ Use only these values for `source_tool`:
 - tavily
 - official_website
 - google_search
+- directory
 - mx_lookup
+- pattern_detection
+- hunter
 - prospeo
 - manual
+
+`source_tool` should reflect the most relevant source or tool used for email discovery, contact evidence, or enrichment.
+
+If an email or contact was found, prioritize the tool/source that produced that email or contact evidence.
+
+Examples:
+- use `official_website` if the email was found directly on the company website
+- use `directory` if the email or contact evidence came from a trusted professional directory
+- use `hunter` if Hunter provided the selected email
+- use `prospeo` if Prospeo provided the selected email
+- use `mx_lookup` if only domain-level validation was completed
+- use `pattern_detection` if only pattern guesses were produced
+- use `tavily` only if Tavily was the main discovery source and no stronger email/contact source exists
+- use `manual` only if the user manually provided or confirmed the source
+
+If multiple tools were used, choose the strongest source in this order:
+
+1. official_website
+2. hunter
+3. prospeo
+4. directory
+5. mx_lookup
+6. pattern_detection
+7. tavily
+8. google_search
+9. manual
+
+Do not use `tavily` as the default value if another tool provided stronger email or contact evidence.
+
+---
+
+## Cost discipline
+
+Do not spend Hunter or Prospeo credits on weak leads.
+
+Before using Hunter:
+- the company must be qualified
+- the ICP must be confirmed
+- CRO friction must be observed
+- the domain must be reliable
+- contact name must be available
+
+Before using Prospeo:
+- the company must be qualified
+- Hunter must be unavailable, empty, weak, or insufficient
+- the lead must be worth paid fallback enrichment
+
+A strong qualified lead with no verified email is better than a weak lead with an email.
+
+Do not continue enriching once a reliable selected email exists.
 
 ---
 
