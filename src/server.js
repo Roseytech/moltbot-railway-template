@@ -884,23 +884,6 @@ app.post("/setup/api/sheets/audit-cro/clients", express.json(), async (req, res)
   }
 });
 
-await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
-      range: "Clients_Finaux_Audit_CRO!A:AF",
-      valueInputOption: "RAW",
-      insertDataOption: "INSERT_ROWS",
-      requestBody: {
-        values: [values],
-      },
-    });
-
-    res.json({ success: true, tab: "Clients_Finaux_Audit_CRO" });
-  } catch (error) {
-    console.error("[audit-cro/clients] Google Sheets append failed:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
-
 app.get("/setup/healthz", (_req, res) => res.json({ ok: true }));
 
 app.get("/healthz", async (_req, res) => {
