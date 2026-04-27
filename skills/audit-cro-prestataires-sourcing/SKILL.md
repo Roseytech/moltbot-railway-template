@@ -1,6 +1,6 @@
 ---
 name: audit-cro-prestataires-sourcing
-description: Mandatory sourcing skill for finding and qualifying Audit CRO providers, CRO agencies, UX audit firms, landing page optimization providers, and conversion optimization consultants for the Prestataires_Audit_CRO tab.
+description: Mandatory sourcing skill for finding and qualifying Audit CRO providers, CRO agencies, UX audit firms, landing page optimization providers, and conversion optimization consultants for the Prestataires_Audit_CRO tab. Enforces bounded Tavily discovery, MX/pattern detection, Hunter Free lookup, Prospeo fallback, and correct Prestataires_Audit_CRO mapping.
 ---
 
 # Audit CRO Prestataires Sourcing
@@ -84,18 +84,54 @@ Primary markets:
 - US
 - UK
 
-Secondary markets only if explicitly requested:
-
-- Canada
-- Ireland
-- Australia
-- Europe
-
 Use these values only in the `market` field unless the user explicitly requests another market:
 
 - US
 - UK
 
+---
+
+## Tool stack for provider sourcing
+
+Use the following stack in this exact order:
+
+1. Tavily for provider discovery and web verification
+2. Official website review
+3. MX lookup and email pattern detection
+4. Hunter Free for conservative email lookup
+5. Prospeo enrich-person as fallback only
+
+Tavily is the primary discovery tool.
+
+Hunter is not a sourcing tool. Hunter is only used after a provider is already qualified and when a reliable contact name plus domain are available.
+
+Prospeo is not a sourcing tool. Prospeo is only used as fallback enrichment when:
+- the provider is already qualified
+- Hunter returned no usable result
+- only weak email patterns exist
+- a contact name exists but no reliable email is available
+
+Do not use Prospeo before Tavily, official website review, MX check, and Hunter logic.
+
+Do not use deprecated Prospeo endpoints.
+
+Allowed Prospeo endpoint:
+
+- /enrich-person
+
+Forbidden Prospeo endpoints:
+
+- /email-finder
+- /domain-search
+- /email-verifier
+- /social-url-enrichment
+
+Default enrichment mode:
+
+- conservative
+- low volume
+- qualified providers only
+  
 ---
 
 ## Strong fit signals
@@ -214,22 +250,30 @@ Use the following logic:
 
 1. Check the official website first.
 2. Look for the contact page, team page, founder page, footer, privacy page, about page, and case study pages.
-3. If an email is visible, capture it in `email`.
+3. If an email is visible on an official source, capture it in `email`.
 4. If no direct email is visible, leave `email` blank.
-5. If a reliable domain and contact name are available, infer likely patterns only when reasonable.
-6. Store likely patterns in:
+5. Check MX only when the provider domain appears reliable and active.
+6. If MX is valid, set `verification_status` to `domain_mx_ok` unless a stronger status applies.
+7. If a reliable domain and contact name are available, infer likely patterns only when reasonable.
+8. Store likely patterns in:
    - `email_guess_1`
    - `email_guess_2`
    - `email_guess_3`
-7. Do not treat an inferred pattern as verified.
-8. Use MX or domain verification where available.
-9. If one email is reliable enough for outreach, put it in `selected_email`.
-10. If no reliable email can be selected, leave `selected_email` blank.
-11. If a reliable email cannot be selected, set `prospeo_needed` to `yes`.
-12. If a reliable selected email exists, set `prospeo_needed` to `no`.
-13. Always set `verification_status`.
-14. Always set `source_tool`.
-15. Always capture the URL supporting the email, contact page, domain, or pattern in `email_source_url` when available.
+9. Do not treat an inferred pattern as verified.
+10. Use Hunter Free only when:
+   - the provider is already qualified
+   - the domain is reliable
+   - MX appears valid
+   - contact name is available
+11. If Hunter returns a strong email with acceptable confidence, place it in `selected_email`.
+12. If Hunter returns a weak, risky, or accept-all result, do not mark it as verified.
+13. If Hunter returns no usable result, set `prospeo_needed` to `yes` when the provider is valuable enough.
+14. Use Prospeo only as fallback enrichment.
+15. If Prospeo returns a verified email, place it in `selected_email`.
+16. If no reliable email can be selected, leave `selected_email` blank.
+17. Always set `verification_status`.
+18. Always set `source_tool`.
+19. Always capture the URL supporting the email, contact page, domain, Hunter result, Prospeo result, or pattern evidence in `email_source_url` when available.
 
 Accepted email sources:
 
@@ -239,7 +283,8 @@ Accepted email sources:
 - official founder page
 - official public profile
 - trusted professional directory
-- Prospeo, only if used intentionally
+- Hunter, only after provider qualification
+- Prospeo, only as fallback
 - MX or domain check, only for domain-level validation
 
 Do not use emails from suspicious, scraped, or low-quality sources.
@@ -272,10 +317,17 @@ Definitions:
 
 ## Prospeo logic
 
+Prospeo is fallback only.
+
+Do not use Prospeo to source providers.
+
+Do not use Prospeo for weak providers.
+
 Set `prospeo_needed` to:
 
 - `yes` if no reliable email is found
 - `yes` if only weak pattern guesses exist
+- `yes` if Hunter returns no usable result
 - `yes` if contact name exists but email is missing
 - `yes` if the provider is otherwise relevant and enrichment would be worth spending
 - `no` if a reliable selected email exists
@@ -286,8 +338,27 @@ Use only:
 - yes
 - no
 
-Do not spend Prospeo credits unless the provider is otherwise relevant.
+When Prospeo is used, use only:
 
+- endpoint: /enrich-person
+- only_verified_email: true
+- company_website when available
+- full_name when available
+- first_name and last_name when available
+
+Do not enrich phone numbers.
+
+Do not enrich mobile numbers.
+
+Do not use Prospeo if:
+
+- the provider is not qualified
+- the ICP fit is low
+- the CRO, UX audit, funnel optimization, landing page optimization, or conversion angle is weak
+- the provider is outside the requested market
+- the website does not load
+- the provider is a duplicate
+  
 ---
 
 ## Allowed values
@@ -334,7 +405,10 @@ Use only these values where applicable.
 - tavily
 - official_website
 - google_search
+- directory
 - mx_lookup
+- pattern_detection
+- hunter
 - prospeo
 - manual
 
@@ -386,6 +460,49 @@ Manual columns after this point must not be filled by this skill unless explicit
 ---
 
 ## Field guidance
+
+### source_tool
+
+Use the most relevant source or tool used for email discovery, contact evidence, or enrichment.
+
+Allowed values:
+
+- tavily
+- official_website
+- google_search
+- directory
+- mx_lookup
+- pattern_detection
+- hunter
+- prospeo
+- manual
+
+If an email or contact was found, prioritize the tool/source that produced that email or contact evidence.
+
+Examples:
+
+- use `official_website` if the email was found directly on the provider website
+- use `directory` if the email or contact evidence came from a trusted professional directory
+- use `hunter` if Hunter provided the selected email
+- use `prospeo` if Prospeo provided the selected email
+- use `mx_lookup` if only domain-level validation was completed
+- use `pattern_detection` if only pattern guesses were produced
+- use `tavily` only if Tavily was the main discovery source and no stronger email or contact source exists
+- use `manual` only if the user manually provided or confirmed the source
+
+If multiple tools were used, choose the strongest source in this order:
+
+1. official_website
+2. hunter
+3. prospeo
+4. directory
+5. mx_lookup
+6. pattern_detection
+7. tavily
+8. google_search
+9. manual
+
+Do not use `tavily` as the default value if another tool provided stronger email or contact evidence.
 
 ### id
 
@@ -670,16 +787,9 @@ Use:
 
 ### source_tool
 
-Use the main tool or source used for discovery or email enrichment.
+Follow the detailed `source_tool` guidance defined earlier in this Field guidance section.
 
-Allowed values:
-
-- tavily
-- official_website
-- google_search
-- mx_lookup
-- prospeo
-- manual
+Do not use a weaker or different interpretation of `source_tool`.
 
 ### email_source_url
 
@@ -696,16 +806,20 @@ For each sourcing run:
 1. Define the target tab as `Prestataires_Audit_CRO`.
 2. Define the market: US or UK.
 3. Define the provider ICP or niche if specified by the user.
-4. Search for CRO providers using targeted queries.
+4. Use Tavily to search for CRO providers through targeted queries.
 5. Open and verify the official website.
-6. Check whether the provider clearly offers CRO, UX audit, conversion, funnel optimization, landing page optimization, or website conversion audit.
-7. Check whether the provider works with B2B, SaaS, services, professional services, or high-ticket clients.
+6. Check whether the provider clearly offers CRO, UX audit, conversion optimization, funnel optimization, landing page optimization, or website conversion audit.
+7. Check whether the provider works with B2B, SaaS, services, professional services, high-ticket offers, or lead-generation websites.
 8. Identify the best decision maker when possible.
-9. Search for visible email or email pattern.
-10. Fill the row fields in the exact order.
-11. Do not include providers with unclear fit unless marked `to_review`.
-12. Do not add duplicates.
-13. Return the results in review mode unless writing was explicitly approved.
+9. Search the official website for visible email evidence.
+10. Run MX or domain validation if the domain is reliable and no direct email is visible.
+11. Produce email patterns only when name plus domain evidence is strong enough.
+12. Use Hunter Free only if the provider is already qualified and contact name plus domain are available.
+13. Use Prospeo only as fallback if Hunter is unavailable, empty, weak, or insufficient.
+14. Fill the row fields in the exact order.
+15. Do not include providers with unclear fit unless marked `to_review`.
+16. Do not add duplicates.
+17. Return the results in review mode unless writing was explicitly approved.
 
 ---
 
@@ -752,6 +866,30 @@ For highly specific niches:
 If the user gives a specific limit, follow the user limit.
 
 Never run open-ended searches.
+
+---
+
+## Cost discipline
+
+Do not spend Hunter or Prospeo credits on weak providers.
+
+Before using Hunter:
+
+- the provider must be qualified
+- the provider ICP must be confirmed
+- the domain must be reliable
+- MX should appear valid
+- contact name must be available
+
+Before using Prospeo:
+
+- the provider must be qualified
+- Hunter must be unavailable, empty, weak, or insufficient
+- the provider must be worth paid fallback enrichment
+
+A strong qualified provider with no verified email is better than a weak provider with an email.
+
+Do not continue enriching once a reliable selected email exists.
 
 ---
 
