@@ -812,22 +812,6 @@ app.post("/setup/api/sheets/audit-cro/prestataires", express.json(), async (req,
     });
   }
 });
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
-      range: "Prestataires_Audit_CRO!A:AF",
-      valueInputOption: "RAW",
-      insertDataOption: "INSERT_ROWS",
-      requestBody: {
-        values: [values],
-      },
-    });
-
-    res.json({ success: true, tab: "Prestataires_Audit_CRO" });
-  } catch (error) {
-    console.error("[audit-cro/prestataires] Google Sheets append failed:", error);
-    res.status(500).json({ success: false, error: error.message });
-  }
-});
 
 app.post("/setup/api/sheets/audit-cro/clients", express.json(), async (req, res) => {
   try {
