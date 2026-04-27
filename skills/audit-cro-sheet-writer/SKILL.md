@@ -1,6 +1,6 @@
 ---
 name: audit-cro-sheet-writer
-description: Mandatory writing skill for appending Audit CRO provider and final-client leads to the live Google Sheet via the approved Railway endpoints using exec curl POST only.
+description: Mandatory writing skill for appending Audit CRO provider and final-client leads to the live Google Sheet via the approved Railway endpoints using exec curl POST only. Enforces exact A:AF mapping, append-only behavior, duplicate discipline, and validated email enrichment fields.
 ---
 
 # Audit CRO Sheet Writer
@@ -10,6 +10,10 @@ Use this skill only when the user asks to write qualified Audit CRO leads to the
 This skill is only for writing already qualified rows into the two approved Audit CRO sourcing tabs.
 
 It must not be used for sourcing, enrichment, strategy, outreach, reporting, or editing existing data.
+
+The Sheet Writer does not discover, qualify, enrich, or verify leads. It only writes already prepared rows that comply with the approved schemas.
+
+---
 
 ## Mandatory rules
 
@@ -25,9 +29,34 @@ It must not be used for sourcing, enrichment, strategy, outreach, reporting, or 
 - If the endpoint returns an error, duplicate response, or HTTP 409, do not retry elsewhere.
 - Never invent companies, websites, LinkedIn URLs, contacts, roles, emails, pricing, team size, or sources.
 - Never write duplicate companies, websites, LinkedIn URLs, or emails if duplicate detection is available.
-- Leave unknown optional values blank.
+- Leave unknown optional values as empty strings.
 - Use plain strings only.
 - Use ISO dates only: YYYY-MM-DD.
+- Each row must contain exactly 32 values.
+- The values array must match the exact A:AF schema order for the target tab.
+
+---
+
+## Current validated write contract
+
+The Audit CRO Google Sheet write contract is validated.
+
+The writer appends exactly 32 values into columns A:AF.
+
+Do not change:
+
+- field order
+- number of values
+- tab names
+- append-only behavior
+- empty string handling for unknown optional values
+- approved Railway endpoints
+
+If new enrichment fields are needed, do not add them silently.
+
+First update the Google Sheet columns, then update the writer mapping, then test with a single row.
+
+---
 
 ## Approved write tabs
 
@@ -47,6 +76,8 @@ OpenClaw must never write into:
 - `Budget_Tracker`
 - `Dashboard`
 
+---
+
 ## Approved endpoints
 
 ### Clients endpoint
@@ -61,6 +92,8 @@ POST:
 
 https://moltbot-railway-template-production-2e3c.up.railway.app/setup/api/sheets/audit-cro/prestataires
 
+---
+
 ## Write ranges
 
 The OpenClaw writable zone is A:AF for both tabs.
@@ -69,6 +102,8 @@ The OpenClaw writable zone is A:AF for both tabs.
 - `Clients_Finaux_Audit_CRO!A:AF`
 
 Manual columns after AF must not be filled by OpenClaw.
+
+---
 
 ## Prestataires_Audit_CRO schema order
 
@@ -127,6 +162,8 @@ Provider qualification must use the existing structured fields:
 - ecommerce_risk
 - pricing_signal
 
+---
+
 ## Clients_Finaux_Audit_CRO schema order
 
 When appending final-client rows, use this exact field order:
@@ -181,7 +218,13 @@ Do not use the old field name `pain_signal`.
 
 Use `cro_friction_summary` instead.
 
+Do not use `employees_range`.
+
+Use `employee_range`.
+
 Do not add `status` to the client-final schema unless the Google Sheet has a matching OpenClaw column for it.
+
+---
 
 ## Required before writing provider leads
 
@@ -220,6 +263,8 @@ The provider must not be:
 - a generic web agency with no CRO or conversion evidence
 - an ecommerce-only agency unless the user explicitly accepts ecommerce risk
 
+---
+
 ## Required before writing final-client leads
 
 For each final-client lead, the following fields must be present:
@@ -251,9 +296,13 @@ The final-client lead must not be:
 - a consultant selling CRO or marketing services
 - another provider candidate
 
-## Email enrichment rules
+---
+
+## Email enrichment fields
 
 Email enrichment is useful but must not lead to invented data.
+
+The Sheet Writer does not perform enrichment. It only validates and writes the enrichment fields already prepared by the sourcing skill.
 
 Use the following rules for both provider and final-client rows:
 
@@ -266,7 +315,7 @@ Use the following rules for both provider and final-client rows:
 - If no enrichment is needed, set `prospeo_needed` to `no`.
 - Always set `verification_status`.
 - Always set `source_tool`.
-- Add `email_source_url` when an email, domain, or pattern source is available.
+- Add `email_source_url` when an email, contact page, domain, Hunter result, Prospeo result, or pattern source is available.
 
 A row may be written without `selected_email` only if:
 
@@ -276,6 +325,29 @@ A row may be written without `selected_email` only if:
 - `prospeo_needed` is set to `yes`
 
 Do not write a row with no website and no source.
+
+---
+
+## Email enrichment source logic
+
+Use the following stack logic when interpreting email fields:
+
+1. Official website evidence
+2. Trusted directory evidence
+3. MX lookup
+4. Pattern detection
+5. Hunter Free lookup
+6. Prospeo fallback
+
+Do not mark a guessed pattern as verified.
+
+Do not mark MX validation as mailbox verification.
+
+Do not mark Hunter or Prospeo as source unless they actually provided or confirmed the selected email.
+
+Do not use Prospeo as a generic source if Prospeo was not actually used.
+
+---
 
 ## Allowed values
 
@@ -346,9 +418,41 @@ Use only:
 - tavily
 - official_website
 - google_search
+- directory
 - mx_lookup
+- pattern_detection
+- hunter
 - prospeo
 - manual
+
+`source_tool` should reflect the most relevant source or tool used for email discovery, contact evidence, or enrichment.
+
+If an email or contact was found, prioritize the tool or source that produced that email or contact evidence.
+
+Examples:
+
+- use `official_website` if the email was found directly on the company website
+- use `directory` if the email or contact evidence came from a trusted professional directory
+- use `hunter` if Hunter provided the selected email
+- use `prospeo` if Prospeo provided the selected email
+- use `mx_lookup` if only domain-level validation was completed
+- use `pattern_detection` if only pattern guesses were produced
+- use `tavily` only if Tavily was the main discovery source and no stronger email or contact source exists
+- use `manual` only if the user manually provided or confirmed the source
+
+If multiple tools were used, choose the strongest source in this order:
+
+1. official_website
+2. hunter
+3. prospeo
+4. directory
+5. mx_lookup
+6. pattern_detection
+7. tavily
+8. google_search
+9. manual
+
+Do not use `tavily` as the default value if another tool provided stronger email or contact evidence.
 
 ### added_by
 
@@ -369,6 +473,8 @@ For `Prestataires_Audit_CRO`, use only:
 Default value:
 
 - new
+
+---
 
 ## Duplicate prevention
 
@@ -394,9 +500,13 @@ If new information is found for an existing company:
 - do not overwrite the sheet
 - return the update suggestion to the user
 
+---
+
 ## Empty write rule
 
-Never call the Railway endpoint with empty rows or empty values.
+Never call the Railway endpoint with empty rows.
+
+Unknown optional fields may be sent as empty strings if the row is otherwise qualified and complete.
 
 If no qualified lead is prepared for writing:
 
@@ -405,7 +515,9 @@ If no qualified lead is prepared for writing:
 - return rows added: 0
 - explain that no qualified candidates were found
 
-A write request is allowed only when at least one complete values array is ready.
+A write request is allowed only when at least one complete 32-value array is ready.
+
+---
 
 ## Curl execution rule
 
@@ -419,6 +531,28 @@ Do not send final-client rows to the providers endpoint.
 
 The values array must follow the exact schema order for the relevant tab.
 
+Each row must contain exactly 32 values.
+
+Use empty strings for unknown optional fields.
+
+Do not omit positions from the values array.
+
+---
+
+## Payload rule
+
+Use the payload shape expected by the approved Railway endpoint.
+
+The payload must contain one or more complete rows.
+
+Each row must be an ordered values array matching the target tab schema.
+
+Do not send objects with field names unless the endpoint explicitly expects objects.
+
+Do not send mixed provider and final-client rows in the same request.
+
+---
+
 ## Output after writing
 
 After writing, return only:
@@ -430,3 +564,7 @@ After writing, return only:
 The count must match the number of companies listed.
 
 Never claim that rows were added unless the Railway endpoint confirms success.
+
+If the endpoint returns partial success, report only the successfully appended companies as added.
+
+If attempted rows and successfully appended rows differ, state the difference clearly.
