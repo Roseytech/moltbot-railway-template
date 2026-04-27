@@ -1,13 +1,13 @@
 ---
 name: audit-cro-client-sourcing
-description: Mandatory controller for every Audit CRO sourcing run. Prevents silent background tasks, enforces bounded execution, and requires exact write summaries.
+description: Mandatory controller for Audit CRO final-client sourcing runs. Enforces bounded execution, exact ICP discipline, email enrichment logic, and correct Clients_Finaux_Audit_CRO mapping.
 ---
 
 # Audit CRO Client Sourcing
 
-Use this skill to find and verify client-final leads for the Audit CRO side business.
+Use this skill to find and verify final-client leads for the Audit CRO side business.
 
-This skill is only for sourcing client-final companies that could benefit from a packaged CRO / conversion audit.
+This skill is only for sourcing final-client companies that could benefit from a packaged CRO / conversion audit.
 
 It must not be used to source:
 - CRO agencies
@@ -19,24 +19,31 @@ It must not be used to source:
 - conversion consultants
 - software vendors selling conversion, demo, sales, analytics, or funnel tools
 
+For sourcing CRO providers, use the Audit CRO provider sourcing skill.
+
 The goal is not to find “ugly websites”.
 
 The goal is to find credible, established professional businesses with high-value services, visible trust, and a website that likely does not convert enough visitors into qualified enquiries, calls, consultations, demos, or appointments.
 
 Strategic logic:
 
-Good business + high client value + under-actionable website = strong Audit CRO lead.
+Good business + high client value + under-actionable website = strong Audit CRO final-client lead.
 
 ---
 
 ## Market scope
 
-Only source client-final leads in:
+Only source final-client leads in:
 
 - United States
 - United Kingdom
 
 Do not source France, Belgium, Switzerland, UAE, Canada, Australia, or other markets unless the user explicitly asks.
+
+Use these market values only:
+
+- US
+- UK
 
 ---
 
@@ -52,7 +59,7 @@ Do not source France, Belgium, Switzerland, UAE, Canada, Australia, or other mar
 
 These are the best first segments because they often have:
 - high-value services
-- visible public emails
+- visible public emails or identifiable email patterns
 - established credibility
 - under-actionable websites
 - clear need for better lead conversion
@@ -136,7 +143,7 @@ Do not retain:
 - SEO agencies
 - PPC agencies
 - software vendors
-- directories
+- directories as standalone leads
 - marketplaces
 - media websites
 - course sellers
@@ -149,58 +156,116 @@ Do not retain:
 - very small solo operators with weak commercial value
 - inactive or suspicious websites
 - very large corporate firms with long enterprise sales cycles
-- businesses with no public email visible
 - businesses outside the US or UK
 - companies already present in the sheet
 
 ---
 
-## Definition of a valid lead
+## Definition of a valid final-client lead
 
-A lead is valid only if all mandatory criteria are met:
+A final-client lead is valid only if all mandatory criteria are met:
 
 - official website loads
 - company is based in the US or UK
-- company is a client-final business, not a provider / vendor / agency
-- public email is visible, unless the user explicitly relaxes this rule
-- email source URL is available
+- company is a final-client business, not a provider, vendor, agency, consultant, marketplace, or software tool
 - sector matches the selected ICP
 - website shows observable CRO friction
-- company looks established enough to potentially pay for an audit
-- no duplicate exists based on company name, website, LinkedIn URL, or email
+- company looks established enough to potentially pay for a professional audit or service improvement
+- source URL is available
+- email enrichment status is captured
+- no duplicate exists based on company name, website, LinkedIn URL, selected email, or visible email
 
-If any mandatory criterion is missing, skip the lead.
+A public email is preferred but not strictly mandatory if the lead is otherwise qualified and the row clearly sets:
+- verification_status
+- selected_email if available
+- prospeo_needed
+- source_tool
+- email_source_url if available
+
+If the user explicitly asks for public-email-only leads, then skip any lead without a visible public email.
 
 ---
 
-## Email rule
-
-Public email is mandatory by default.
-
-Only accept an email if it is visible on at least one of these sources:
-
-- official website
-- official contact page
-- official team page
-- trusted professional directory
-- official public profile
+## Email enrichment rule
 
 Do not invent emails.
 
-Do not guess emails.
+Use this workflow:
 
-Do not infer formats such as firstname@company.com.
+1. Check the official website first.
+2. Check the contact page, team page, footer, privacy page, and about page.
+3. If a public email is visible, capture it in `email`.
+4. If no public email is visible, leave `email` blank.
+5. If a reliable domain and contact name are available, inferred email patterns may be placed in:
+   - `email_guess_1`
+   - `email_guess_2`
+   - `email_guess_3`
+6. Do not treat an inferred pattern as verified.
+7. If one email is reliable enough for outreach, put it in `selected_email`.
+8. If no reliable email can be selected, leave `selected_email` blank.
+9. If Prospeo enrichment is needed, set `prospeo_needed` to `yes`.
+10. If no Prospeo enrichment is needed, set `prospeo_needed` to `no`.
+11. Always set `verification_status`.
+12. Always set `source_tool`.
+13. Add `email_source_url` when an email, contact page, domain source, or pattern source is available.
+
+Accepted email sources:
+- official website
+- official contact page
+- official team page
+- official public profile
+- trusted professional directory
+- Prospeo, only if used intentionally
+- MX/domain check, only for domain-level validation
 
 Do not use emails from suspicious, scraped, or low-quality sources.
 
-If no public email is visible, skip the lead.
+---
 
-For law firms, if the user explicitly allows contact forms, email may be left blank. Otherwise, public email remains mandatory.
+## Verification status values
+
+Use only these values for `verification_status`:
+
+- not_checked
+- domain_mx_ok
+- pattern_guess
+- verified
+- risky
+- invalid
+- no_email_found
+
+Definitions:
+
+- `not_checked`: no email verification has been performed
+- `domain_mx_ok`: the domain appears able to receive email, but the exact mailbox is not confirmed
+- `pattern_guess`: the email is inferred from a pattern, not directly verified
+- `verified`: the email appears directly verified or clearly published by the company
+- `risky`: the email is uncertain or weak
+- `invalid`: the email or domain appears invalid
+- `no_email_found`: no usable email or pattern was found
 
 ---
+
+## Prospeo logic
+
+Set `prospeo_needed` to:
+
+- `yes` if no reliable email is found
+- `yes` if only weak pattern guesses exist
+- `yes` if a contact name exists but email is missing
+- `no` if a reliable selected email exists
+- `no` if the lead should be rejected and no enrichment is worth spending
+
+Use only:
+
+- yes
+- no
+
+---
+
 ## Mandatory CRO friction rule
 
-Observable CRO friction is mandatory for every client-final lead.
+Observable CRO friction is mandatory for every final-client lead.
 
 A public email alone is not enough to qualify a lead.
 
@@ -209,14 +274,16 @@ If CRO friction is none, unclear, or not observed:
 - skip the company
 - report reason: no observable CRO friction
 
-A client-final lead is eligible for append only if:
-- public email is visible
+A final-client lead is eligible for append only if:
 - official website is available
-- client-final business is confirmed
+- final-client business is confirmed
 - selected ICP is confirmed
 - observable CRO friction is present
 - no duplicate exists
-  
+- email enrichment fields are correctly populated
+
+---
+
 ## CRO friction signals
 
 A valid lead should show at least 2 observable CRO friction signals.
@@ -316,14 +383,14 @@ Preferred batch size:
 - 10 leads for easier segments like UK accounting or US CPA firms
 
 Default sourcing limits:
-- for easy ICPs: check up to 20 candidates, append up to 10
-- for difficult ICPs: check up to 15 candidates, append up to 5
+- for easy ICPs: check up to 20 candidates, return or append up to 10
+- for difficult ICPs: check up to 15 candidates, return or append up to 5
 
 Never run open-ended searches.
 
 Before writing:
-- check whether the company already exists in the sheet
-- compare company_name, website, LinkedIn URL, and email
+- check whether the company already exists in the sheet if duplicate detection is available
+- compare company_name, website, LinkedIn URL, email, and selected_email
 - skip duplicates
 
 ---
@@ -340,7 +407,9 @@ Default order:
 6. HR consulting firms
 7. business advisory / consulting firms
 
-Do not source all ICPs at once. Follow the exact segment requested by the user.
+Do not source all ICPs at once.
+
+Follow the exact segment requested by the user.
 
 ---
 
@@ -433,26 +502,6 @@ Search patterns:
 
 ---
 
-## Validation rules
-
-A lead is valid only if:
-
-- official website loads
-- public email is visible, unless the user explicitly relaxes this rule
-- email source URL is provided
-- company is based in the US or UK
-- client-final business is confirmed
-- sector matches the selected ICP
-- observable CRO friction exists
-- company appears established
-- no duplicate exists in the current sheet
-
-If the source is only a directory, verify through the official website when possible.
-
-If the company does not clearly match the requested ICP, skip it.
-
----
-
 ## Scoring
 
 Use `high`, `medium`, or `low`.
@@ -460,27 +509,26 @@ Use `high`, `medium`, or `low`.
 ### high
 
 Use when:
-- public email is visible
 - company is clearly established
 - services are high-value
 - website has clear conversion friction
 - firm has team, partners, accreditations, or credibility signals
 - fit for Audit CRO is obvious
+- email or email enrichment path is usable
 
 ### medium
 
 Use when:
-- public email is visible
 - company fits the sector
 - some CRO friction is visible
 - value or company size is less clear
+- email path may require Prospeo
 
 ### low
 
 Use only if:
-- email is visible
 - company technically fits
-- but the business value, maturity, or CRO need is weak
+- but business value, maturity, or CRO need is weak
 
 Prefer skipping low-quality leads rather than adding weak rows.
 
@@ -495,8 +543,8 @@ Collect the following whenever available:
 - city / state
 - sector / industry
 - website
-- public email
-- email source URL
+- public email if visible
+- email source URL if available
 - source directory URL if applicable
 - company LinkedIn URL if found
 - decision maker name if found
@@ -504,10 +552,16 @@ Collect the following whenever available:
 - decision maker LinkedIn URL if found
 - estimated company size if found
 - high-value services
+- CRO friction summary
 - CRO friction signals
 - why_fit
-- priority score
-- notes if useful
+- icp_fit
+- email guesses if reliable enough
+- verification_status
+- selected_email if reliable enough
+- prospeo_needed
+- source_tool
+- email_source_url
 
 Do not invent missing data.
 
@@ -519,21 +573,104 @@ If a non-mandatory field is unknown, leave it blank.
 
 When writing to `Clients_Finaux_Audit_CRO`, use the exact sheet column order required by the Audit CRO Sheet Writer.
 
+Use this exact field order:
+
+1. id
+2. market
+3. company_name
+4. website
+5. linkedin_url
+6. contact_name
+7. contact_role
+8. contact_linkedin
+9. email
+10. city
+11. country
+12. industry
+13. employee_range
+14. cro_friction_summary
+15. icp_fit
+16. why_fit
+17. source
+18. date_added
+19. added_by
+20. cro_signal_1
+21. cro_signal_2
+22. cro_signal_3
+23. cro_signal_4
+24. cro_signal_5
+25. email_guess_1
+26. email_guess_2
+27. email_guess_3
+28. verification_status
+29. selected_email
+30. prospeo_needed
+31. source_tool
+32. email_source_url
+
+Do not use the old field name `pain_signal`.
+
+Do not use `employees_range`.
+
+Use `employee_range`.
+
+Do not add `status` to the client-final schema unless the Google Sheet has a matching OpenClaw column for it.
+
+---
+
+## Field mapping rules
+
 Map fields as follows:
 
 - public email -> email
 - city / state -> city
 - country -> country
 - sector -> industry
-- estimated company size -> employees_range
-- CRO friction signals -> pain_signal
+- estimated company size -> employee_range
+- summary of the main conversion problem -> cro_friction_summary
+- specific friction point 1 -> cro_signal_1
+- specific friction point 2 -> cro_signal_2
+- specific friction point 3 -> cro_signal_3
+- specific friction point 4 -> cro_signal_4
+- specific friction point 5 -> cro_signal_5
 - priority score -> icp_fit
 - short business rationale -> why_fit
-- email source URL and/or source directory URL -> source
+- main qualification URL -> source
+- current ISO date -> date_added
 - openclaw -> added_by
-- new -> status
+- first likely email -> email_guess_1
+- second likely email -> email_guess_2
+- third likely email -> email_guess_3
+- email verification result -> verification_status
+- final email selected for outreach -> selected_email
+- whether Prospeo is needed -> prospeo_needed
+- tool or source used for email discovery -> source_tool
+- email or contact source URL -> email_source_url
 
-If multiple source URLs are useful, put the most important verification source first.
+If multiple source URLs are useful:
+- put the most important business / CRO qualification source in `source`
+- put the email or contact evidence source in `email_source_url`
+
+---
+
+## Default values
+
+Use:
+
+- added_by: openclaw
+- date_added: YYYY-MM-DD
+- market: US or UK only
+- icp_fit: high, medium, or low only
+- prospeo_needed: yes or no only
+
+Use only these values for `source_tool`:
+
+- tavily
+- official_website
+- google_search
+- mx_lookup
+- prospeo
+- manual
 
 ---
 
