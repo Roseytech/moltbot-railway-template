@@ -680,28 +680,52 @@ async function isDuplicateAuditCroRow(sheets, spreadsheetId, range, values) {
 
   const rows = response.data.values || [];
 
-  // Le sheet a une ligne titre + une ligne d'en-têtes, donc on ignore les 2 premières lignes
+  // Le sheet a une ligne titre + une ligne headers, donc on ignore les 2 premières lignes
   const dataRows = rows.slice(2);
 
   const newCompanyName = normalizeAuditCroValue(values[2]);
   const newWebsite = normalizeAuditCroValue(values[3]);
   const newLinkedinUrl = normalizeAuditCroValue(values[4]);
+  const newContactLinkedin = normalizeAuditCroValue(values[7]);
+  const newEmail = normalizeAuditCroValue(values[8]);
   const newCountry = normalizeAuditCroValue(values[10]);
+  const newSelectedEmail = normalizeAuditCroValue(values[28]);
 
   return dataRows.some((row) => {
     const existingCompanyName = normalizeAuditCroValue(row[2]);
     const existingWebsite = normalizeAuditCroValue(row[3]);
     const existingLinkedinUrl = normalizeAuditCroValue(row[4]);
+    const existingContactLinkedin = normalizeAuditCroValue(row[7]);
+    const existingEmail = normalizeAuditCroValue(row[8]);
     const existingCountry = normalizeAuditCroValue(row[10]);
+    const existingSelectedEmail = normalizeAuditCroValue(row[28]);
 
+    // Doublon fort : même website
     if (newWebsite && existingWebsite && newWebsite === existingWebsite) {
       return true;
     }
 
+    // Doublon fort : même LinkedIn company
     if (newLinkedinUrl && existingLinkedinUrl && newLinkedinUrl === existingLinkedinUrl) {
       return true;
     }
 
+    // Doublon fort : même LinkedIn contact
+    if (newContactLinkedin && existingContactLinkedin && newContactLinkedin === existingContactLinkedin) {
+      return true;
+    }
+
+    // Doublon email visible
+    if (newEmail && existingEmail && newEmail === existingEmail) {
+      return true;
+    }
+
+    // Doublon email sélectionné pour outreach
+    if (newSelectedEmail && existingSelectedEmail && newSelectedEmail === existingSelectedEmail) {
+      return true;
+    }
+
+    // Doublon faible mais utile : même nom + même pays
     if (
       newCompanyName &&
       existingCompanyName &&
@@ -721,31 +745,74 @@ app.post("/setup/api/sheets/audit-cro/prestataires", express.json(), async (req,
     const { values } = req.body;
 
     if (!Array.isArray(values)) {
-      return res.status(400).json({ success: false, error: "values must be an array" });
+      return res.status(400).json({
+        success: false,
+        error: "values must be an array"
+      });
+    }
+
+    if (values.length !== 32) {
+      return res.status(400).json({
+        success: false,
+        error: "invalid_values_length",
+        expected: 32,
+        received: values.length,
+        tab: "Prestataires_Audit_CRO"
+      });
     }
 
     const sheets = await getSheetsClient();
+
     console.log("[audit-cro/prestataires] incoming values:", values);
-const duplicate = await isDuplicateAuditCroRow(
-  sheets,
-  process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
-  "Prestataires_Audit_CRO!A:Z",
-  values
-);
 
-console.log("[audit-cro/prestataires] duplicate result:", duplicate);
+    const duplicate = await isDuplicateAuditCroRow(
+      sheets,
+      process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
+      "Prestataires_Audit_CRO!A:AF",
+      values
+    );
 
-if (duplicate) {
-  return res.status(409).json({
-    success: false,
-    duplicate: true,
-    tab: "Prestataires_Audit_CRO",
-    message: "Duplicate detected. Row was not added."
-  });
-}
+    console.log("[audit-cro/prestataires] duplicate result:", duplicate);
+
+    if (duplicate) {
+      return res.status(409).json({
+        success: false,
+        duplicate: true,
+        tab: "Prestataires_Audit_CRO",
+        message: "Duplicate detected. Row was not added."
+      });
+    }
+
     await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
-      range: "Prestataires_Audit_CRO!A:Z",
+      range: "Prestataires_Audit_CRO!A:AF",
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: {
+        values: [values]
+      }
+    });
+
+    return res.json({
+      success: true,
+      rowsAdded: 1,
+      tab: "Prestataires_Audit_CRO",
+      company: values[2] || ""
+    });
+
+  } catch (error) {
+    console.error("[audit-cro/prestataires] append error:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "provider_append_failed",
+      message: error.message
+    });
+  }
+});
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
+      range: "Prestataires_Audit_CRO!A:AF",
       valueInputOption: "RAW",
       insertDataOption: "INSERT_ROWS",
       requestBody: {
@@ -765,34 +832,75 @@ app.post("/setup/api/sheets/audit-cro/clients", express.json(), async (req, res)
     const { values } = req.body;
 
     if (!Array.isArray(values)) {
-      return res.status(400).json({ success: false, error: "values must be an array" });
+      return res.status(400).json({
+        success: false,
+        error: "values must be an array"
+      });
     }
 
-  const sheets = await getSheetsClient();
+    if (values.length !== 32) {
+      return res.status(400).json({
+        success: false,
+        error: "invalid_values_length",
+        expected: 32,
+        received: values.length,
+        tab: "Clients_Finaux_Audit_CRO"
+      });
+    }
 
-console.log("[audit-cro/clients] incoming values:", values);
+    const sheets = await getSheetsClient();
 
-const duplicate = await isDuplicateAuditCroRow(
-  sheets,
-  process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
-  "Clients_Finaux_Audit_CRO!A:Z",
-  values
-);
+    console.log("[audit-cro/clients] incoming values:", values);
 
-console.log("[audit-cro/clients] duplicate result:", duplicate);
+    const duplicate = await isDuplicateAuditCroRow(
+      sheets,
+      process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
+      "Clients_Finaux_Audit_CRO!A:AF",
+      values
+    );
 
-if (duplicate) {
-  return res.status(409).json({
-    success: false,
-    duplicate: true,
-    tab: "Clients_Finaux_Audit_CRO",
-    message: "Duplicate detected. Row was not added."
-  });
-}
+    console.log("[audit-cro/clients] duplicate result:", duplicate);
+
+    if (duplicate) {
+      return res.status(409).json({
+        success: false,
+        duplicate: true,
+        tab: "Clients_Finaux_Audit_CRO",
+        message: "Duplicate detected. Row was not added."
+      });
+    }
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
+      range: "Clients_Finaux_Audit_CRO!A:AF",
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: {
+        values: [values]
+      }
+    });
+
+    return res.json({
+      success: true,
+      rowsAdded: 1,
+      tab: "Clients_Finaux_Audit_CRO",
+      company: values[2] || ""
+    });
+
+  } catch (error) {
+    console.error("[audit-cro/clients] append error:", error);
+
+    return res.status(500).json({
+      success: false,
+      error: "client_append_failed",
+      message: error.message
+    });
+  }
+});
 
 await sheets.spreadsheets.values.append({
       spreadsheetId: process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
-      range: "Clients_Finaux_Audit_CRO!A:Z",
+      range: "Clients_Finaux_Audit_CRO!A:AF",
       valueInputOption: "RAW",
       insertDataOption: "INSERT_ROWS",
       requestBody: {
