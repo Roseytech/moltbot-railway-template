@@ -29,9 +29,10 @@ The Sheet Writer does not discover, qualify, enrich, or verify leads. It only wr
 - If the endpoint returns an error, duplicate response, or HTTP 409, do not retry elsewhere.
 - Never invent companies, websites, LinkedIn URLs, contacts, roles, emails, pricing, team size, or sources.
 - Never write duplicate companies, websites, LinkedIn URLs, or emails if duplicate detection is available.
-- If a public email is found and selected for outreach, fill both:
-- `email`
--`selected_email` Do not leave `email` blank when `selected_email` comes from a verified public source.
+- - If a public email is found and selected for outreach, fill both:
+  - `email`
+  - `selected_email`
+- Do not leave `email` blank when `selected_email` comes from a verified public source.
 - Leave unknown optional values blank or omit them from the preferred `row` object.
 - `why_fit` must explain why the provider may be relevant for the Audit CRO pilot offer, not merely why the company is a CRO provider.
 - Use plain strings only.
