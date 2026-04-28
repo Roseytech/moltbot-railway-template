@@ -1,15 +1,28 @@
 ---
 name: audit-cro-prestataires-sourcing
-description: Mandatory sourcing skill for finding and qualifying Audit CRO providers, CRO agencies, UX audit firms, landing page optimization providers, and conversion optimization consultants for the Prestataires_Audit_CRO tab. Enforces bounded Tavily discovery, MX/pattern detection, Hunter Free lookup, Prospeo fallback, and correct Prestataires_Audit_CRO mapping.
+description: Mandatory sourcing skill for finding and qualifying Audit CRO providers, CRO agencies, UX audit firms, landing page optimization providers, and conversion optimization consultants for the Prestataires_Audit_CRO tab. Enforces bounded Tavily discovery, website validation, MX and email pattern detection, Hunter Free lookup, Prospeo fallback flagging, and correct handoff to the Audit CRO Sheet Writer.
 ---
 
 # Audit CRO Prestataires Sourcing
 
 ## Objective
 
-Find and qualify CRO agencies, conversion optimization consultants, UX audit firms, landing page optimization providers, and funnel optimization specialists that could be relevant partners for the Audit CRO pilot.
+Find and qualify CRO providers that could buy or test the Audit CRO pilot offer.
 
-This skill is used to source potential providers for the `Prestataires_Audit_CRO` tab only.
+This skill is used only to source potential providers for the `Prestataires_Audit_CRO` tab.
+
+A provider is a company, agency, consultant, studio, or boutique firm that sells services related to:
+
+- conversion rate optimization
+- CRO audit
+- landing page optimization
+- UX audit
+- funnel optimization
+- website conversion improvement
+- experimentation
+- A/B testing strategy
+- ecommerce conversion optimization
+- B2B SaaS conversion optimization
 
 The goal is not to find final clients with CRO problems.
 
@@ -20,1155 +33,547 @@ The goal is to find providers who may buy a pilot consisting of:
 - upfront fee
 - success fee if a deal is signed with an introduced client
 
-This skill must not write directly to the Google Sheet.  
-Writing must go through the Audit CRO Sheet Writer only.
+This skill must not write directly to Google Sheets.
+
+Writing must always go through the `audit-cro-sheet-writer` skill.
 
 ---
 
 ## When to use this skill
 
-Use this skill when the user asks to:
-
-- source Audit CRO providers
-- find CRO agencies
-- find conversion optimization agencies
-- find UX audit providers
-- find landing page optimization specialists
-- find funnel optimization specialists
-- find B2B CRO consultants
-- build a list of prestataires Audit CRO
-- qualify agencies for the Audit CRO pilot
-- find agencies that could buy the Audit CRO pilot
-
----
-
-## Do not use this skill for
-
-Do not use this skill to:
-
-- source final clients
-- identify CRO frictions on client websites
-- write into reporting tabs
-- edit historical rows
-- modify existing Google Sheet data
-- create outreach messages unless explicitly asked
-- invent emails, LinkedIn URLs, roles, pricing, team size, or sources
-
-For final-client sourcing, use the client-facing Audit CRO sourcing skill instead.
-
----
-
-## Target provider profile
-
-Prioritize providers that match most of the following:
-
-- CRO agency
-- conversion optimization consultant
-- UX audit provider
-- landing page optimization agency
-- funnel optimization specialist
-- paid traffic landing page specialist
-- B2B website optimization consultant
-- founder-led or small team
-- likely to work with high-ticket B2B services, SaaS, professional services, advisory, legal, accounting, consulting, or lead-generation websites
-- able to benefit from qualified commercial introductions
-- likely to have capacity to handle new audit opportunities
-- likely to understand the value of qualified opportunities rather than raw lead lists
-
----
-
-## Preferred markets
-
-Primary markets:
-
-- US
-- UK
-
-Use these values only in the `market` field unless the user explicitly requests another market:
-
-- US
-- UK
-
----
-
-## Tool stack for provider sourcing
-
-Use the following stack in this exact order:
-
-1. Tavily for provider discovery and web verification
-2. Official website review
-3. MX lookup and email pattern detection
-4. Hunter Free for conservative email lookup
-5. Prospeo enrich-person as fallback only
-
-Tavily is the primary discovery tool.
-
-Hunter is not a sourcing tool. Hunter is only used after a provider is already qualified and when a reliable contact name plus domain are available.
-
-Prospeo is not a sourcing tool. Prospeo is only used as fallback enrichment when:
-- the provider is already qualified
-- Hunter returned no usable result
-- only weak email patterns exist
-- a contact name exists but no reliable email is available
-
-Do not use Prospeo before Tavily, official website review, MX check, and Hunter logic.
-
-Do not use deprecated Prospeo endpoints.
-
-Allowed Prospeo endpoint:
-
-- /enrich-person
-
-Forbidden Prospeo endpoints:
-
-- /email-finder
-- /domain-search
-- /email-verifier
-- /social-url-enrichment
-
-Default enrichment mode:
-
-- conservative
-- low volume
-- qualified providers only
-  
----
-
-## Strong fit signals
-
-A provider is a strong fit if several of these signals are visible:
-
-- They explicitly offer CRO audits
-- They mention conversion optimization
-- They offer landing page audits
-- They optimize lead-generation funnels
-- They work with B2B, SaaS, service businesses, or high-ticket offers
-- They show case studies around conversion, revenue, leads, demo bookings, signups, calls, or funnel performance
-- They have a founder, managing partner, growth lead, CRO lead, or conversion strategist visible
-- They are not too large or too enterprise-heavy
-- Their offer appears compatible with a paid pilot and success-based upside
-- Their site suggests they could handle qualified audit opportunities
-- Their positioning is clear enough to match them with client-final opportunities
-
----
-
-## Weak or reject signals
-
-Reject or mark as low fit if:
-
-- the provider is mostly SEO only
-- the provider is mostly branding only
-- the provider is mostly web design with no conversion angle
-- the provider is ecommerce-only with no B2B or service business angle
-- the provider is a huge enterprise agency with no clear founder access
-- the provider is a freelance designer with no CRO evidence
-- the provider is a generic digital agency with no audit, funnel, CRO, or conversion language
-- the provider appears inactive
-- the provider has no website or credible source
-- the provider is another lead generation agency, staffing agency, recruitment firm, or marketplace
-- the provider sells tools or software instead of services
-- the provider appears too small or too weak to buy a pilot
-- the provider has no clear decision maker and no useful contact path
-
-When in doubt, skip or mark as `to_review`.
-
----
-
-## Definition of a valid provider lead
-
-A provider lead is valid only if all mandatory criteria are met:
-
-- official website loads
-- company is based in the US or UK unless the user explicitly requests another market
-- company is a provider, not a final-client business
-- provider clearly offers CRO, conversion optimization, UX audit, landing page optimization, funnel optimization, or website conversion audit
-- provider appears commercially credible enough to buy or test the Audit CRO pilot
-- source URL is available
-- email enrichment status is captured
-- no duplicate exists based on company name, website, LinkedIn URL, selected email, or visible email
-
-A public email is preferred but not strictly mandatory if the provider is otherwise qualified and the row clearly sets:
-
-- verification_status
-- selected_email if available
-- prospeo_needed
-- source_tool
-- email_source_url if available
-
-If the provider looks relevant but needs human review, use:
-
-`status = to_review`
-
-If the provider does not clearly offer CRO, UX audit, conversion, funnel optimization, landing page optimization, or website conversion audit, skip it.
-
----
-
-## Qualification logic
-
-Use the existing structured fields to capture provider qualification.
-
-Do not create or use generic provider signal fields.
-
-Do not use:
-
-- provider_signal_1
-- provider_signal_2
-- provider_signal_3
-- provider_signal_4
-- provider_signal_5
-
-Provider qualification must be captured through:
-
-- offer_type
-- packaged_offer
-- icp_fit
-- why_fit
-- founder_name
-- team_size_estimate
-- b2b_fit
-- ecommerce_risk
-- pricing_signal
-
-The email enrichment workflow must be captured through:
-
-- email_guess_1
-- email_guess_2
-- email_guess_3
-- verification_status
-- selected_email
-- prospeo_needed
-- source_tool
-- email_source_url
-
----
-
-## Email discovery rules
-
-Never invent emails.
-
-Use the following logic:
-
-1. Check the official website first.
-2. Look for the contact page, team page, founder page, footer, privacy page, about page, and case study pages.
-3. If an email is visible on an official source, capture it in `email`.
-4. If no direct email is visible, leave `email` blank.
-5. Check MX only when the provider domain appears reliable and active.
-6. If MX is valid, set `verification_status` to `domain_mx_ok` unless a stronger status applies.
-7. If a reliable domain and contact name are available, infer likely patterns only when reasonable.
-8. Store likely patterns in:
-   - `email_guess_1`
-   - `email_guess_2`
-   - `email_guess_3`
-9. Do not treat an inferred pattern as verified.
-10. Use Hunter Free only when:
-   - the provider is already qualified
-   - the domain is reliable
-   - MX appears valid
-   - contact name is available
-11. If Hunter returns a strong email with acceptable confidence, place it in `selected_email`.
-12. If Hunter returns a weak, risky, or accept-all result, do not mark it as verified.
-13. If Hunter returns no usable result, set `prospeo_needed` to `yes` when the provider is valuable enough.
-14. Use Prospeo only as fallback enrichment.
-15. If Prospeo returns a verified email, place it in `selected_email`.
-16. If no reliable email can be selected, leave `selected_email` blank.
-17. Always set `verification_status`.
-18. Always set `source_tool`.
-19. Always capture the URL supporting the email, contact page, domain, Hunter result, Prospeo result, or pattern evidence in `email_source_url` when available.
-
-Accepted email sources:
-
-- official website
-- official contact page
-- official team page
-- official founder page
-- official public profile
-- trusted professional directory
-- Hunter, only after provider qualification
-- Prospeo, only as fallback
-- MX or domain check, only for domain-level validation
-
-Do not use emails from suspicious, scraped, or low-quality sources.
-
-## Masked and placeholder email rule
-
-Do not use masked, protected, obfuscated, placeholder, or unreadable emails.
-
-Invalid examples:
-
-- `[email protected]`
-- `name[at]domain.com` unless clearly normalized from an official visible source
-- partially hidden emails
-- image-only emails that cannot be read reliably
-- emails from screenshots that are not clearly readable
-- emails from low-quality scraped sources
-- guessed emails presented as visible emails
-
-If the exact email is not clearly visible on a reliable source, leave:
-
-- `email` blank
-- `selected_email` blank
-- `verification_status = no_email_found`
-- `prospeo_needed = yes`
-
-Only set `verification_status = verified` when the exact email is visible on an official website, trusted directory, Hunter result, or Prospeo result.
-
----
-
-## Verification status values
-
-Use only these values for `verification_status`:
-
-- not_checked
-- domain_mx_ok
-- pattern_guess
-- verified
-- risky
-- invalid
-- no_email_found
-
-Definitions:
-
-- `not_checked`: no email verification has been performed
-- `domain_mx_ok`: the domain appears able to receive email, but the exact mailbox is not confirmed
-- `pattern_guess`: the email is inferred from a pattern, not directly verified
-- `verified`: the email appears directly verified or clearly published by the provider
-- `risky`: the email is uncertain, weak, or generic
-- `invalid`: the email or domain appears invalid
-- `no_email_found`: no usable email or pattern was found
-
----
-
-## Prospeo logic
-
-Prospeo is fallback only.
-
-Do not use Prospeo to source providers.
-
-Do not use Prospeo for weak providers.
-
-Set `prospeo_needed` to:
-
-- `yes` if no reliable email is found
-- `yes` if only weak pattern guesses exist
-- `yes` if Hunter returns no usable result
-- `yes` if contact name exists but email is missing
-- `yes` if the provider is otherwise relevant and enrichment would be worth spending
-- `no` if a reliable selected email exists
-- `no` if the provider should be rejected and no enrichment is worth spending
-
-Use only:
-
-- yes
-- no
-
-When Prospeo is used, use only:
-
-- endpoint: /enrich-person
-- only_verified_email: true
-- company_website when available
-- full_name when available
-- first_name and last_name when available
-
-Do not enrich phone numbers.
-
-Do not enrich mobile numbers.
-
-Do not use Prospeo if:
-
-- the provider is not qualified
-- the ICP fit is low
-- the CRO, UX audit, funnel optimization, landing page optimization, or conversion angle is weak
-- the provider is outside the requested market
-- the website does not load
-- the provider is a duplicate
-  
----
-
-## Allowed values
-
-Use only these values where applicable.
-
-### market
-
-- US
-- UK
-
-### icp_fit
-
-- high
-- medium
-- low
-
-### b2b_fit
-
-- high
-- medium
-- low
-
-### ecommerce_risk
-
-- low
-- medium
-- high
-
-### status
-
-- new
-- to_review
-- qualified
-- rejected
-- contacted
-
-### added_by
-
-- openclaw
-
-### source_tool
-
-- tavily
-- official_website
-- google_search
-- directory
-- mx_lookup
-- pattern_detection
-- hunter
-- prospeo
-- manual
-
----
-
-## Field order for Prestataires_Audit_CRO
-
-When producing rows for the `Prestataires_Audit_CRO` tab, use this exact field order:
-
-1. id
-2. market
-3. company_name
-4. website
-5. linkedin_url
-6. contact_name
-7. contact_role
-8. contact_linkedin
-9. email
-10. city
-11. country
-12. offer_type
-13. packaged_offer
-14. icp_fit
-15. why_fit
-16. source
-17. date_added
-18. added_by
-19. status
-20. founder_name
-21. team_size_estimate
-22. b2b_fit
-23. ecommerce_risk
-24. pricing_signal
-25. email_guess_1
-26. email_guess_2
-27. email_guess_3
-28. verification_status
-29. selected_email
-30. prospeo_needed
-31. source_tool
-32. email_source_url
-
-Writable range:
-
-`Prestataires_Audit_CRO!A:AF`
-
-Manual columns after this point must not be filled by this skill unless explicitly requested by the user.
-
-## Strict 32-field review output rule
-
-In provider review mode, always return candidates using the exact 32 fields of `Prestataires_Audit_CRO` in the exact sheet order.
-
-The required field order is:
-
-1. id
-2. market
-3. company_name
-4. website
-5. linkedin_url
-6. contact_name
-7. contact_role
-8. contact_linkedin
-9. email
-10. city
-11. country
-12. offer_type
-13. packaged_offer
-14. icp_fit
-15. why_fit
-16. source
-17. date_added
-18. added_by
-19. status
-20. founder_name
-21. team_size_estimate
-22. b2b_fit
-23. ecommerce_risk
-24. pricing_signal
-25. email_guess_1
-26. email_guess_2
-27. email_guess_3
-28. verification_status
-29. selected_email
-30. prospeo_needed
-31. source_tool
-32. email_source_url
-
-A row with 32 values but wrong field order is invalid.
-
-Never return provider review results as:
-- a transposed table with field names as rows and companies as columns
-- a summary table with custom fields
-- a compact JSON array unless every position is correctly mapped
-- a table using fields such as Notes, Description, Website section, Services, or Company
-
-If a value is unknown, leave the field blank.
-
-Do not remove the field.
-
-Do not shift values left to fill blanks.
-
-Before returning review rows, verify that each candidate can be mapped to the 32 fields above without ambiguity.
-
----
-
-## Field guidance
-
-### source_tool
-
-Use the most relevant source or tool used for email discovery, contact evidence, or enrichment.
-
-Allowed values:
-
-- tavily
-- official_website
-- google_search
-- directory
-- mx_lookup
-- pattern_detection
-- hunter
-- prospeo
-- manual
-
-If an email or contact was found, prioritize the tool/source that produced that email or contact evidence.
+Use this skill when the user asks to find, source, enrich, qualify, or prepare potential Audit CRO providers.
 
 Examples:
 
-- use `official_website` if the email was found directly on the provider website
-- use `directory` if the email or contact evidence came from a trusted professional directory
-- use `hunter` if Hunter provided the selected email
-- use `prospeo` if Prospeo provided the selected email
-- use `mx_lookup` if only domain-level validation was completed
-- use `pattern_detection` if only pattern guesses were produced
-- use `tavily` only if Tavily was the main discovery source and no stronger email or contact source exists
-- use `manual` only if the user manually provided or confirmed the source
+- "Find CRO agencies in the US"
+- "Source UK conversion optimization consultants"
+- "Find prestataires CRO for Audit CRO"
+- "Prepare provider leads for the Prestataires_Audit_CRO tab"
+- "Find agencies that could buy the Audit CRO pilot"
+- "Run provider sourcing for CRO agencies"
 
-If multiple tools were used, choose the strongest source in this order:
+---
 
-1. official_website
-2. hunter
-3. prospeo
-4. directory
-5. mx_lookup
-6. pattern_detection
-7. tavily
-8. google_search
-9. manual
+## When not to use this skill
 
-Do not use `tavily` as the default value if another tool provided stronger email or contact evidence.
+Do not use this skill to source final-client companies.
 
-### id
+For final clients, use:
 
-Create a stable, readable id using:
+`audit-cro-client-sourcing`
 
-- provider
-- market
-- company slug
-- date or sequence if needed
+Do not use this skill to source:
 
-Example:
+- accounting firms as final clients
+- CPA firms as final clients
+- law firms as final clients
+- architecture firms as final clients
+- engineering firms as final clients
+- professional services companies with CRO problems
+- SaaS companies as final clients
+- ecommerce brands as final clients
 
-`provider_us_conversionwise_20260427`
+Those belong to the client-final sourcing workflow.
 
-Do not use random IDs if a stable slug is possible.
+This skill is only for providers who sell CRO, UX, conversion, funnel, experimentation, or landing page optimization services.
 
-### market
+---
 
-Use only:
+## Market scope
 
-- US
-- UK
-
-Unless the user explicitly requests another market.
-
-### company_name
-
-Use the official company name from the website or trusted source.
-
-Do not invent or normalize too aggressively.
-
-### website
-
-Use the official website URL.
-
-Do not use directory URLs as the company website.
-
-### linkedin_url
-
-Use the official company LinkedIn URL if found.
-
-Leave blank if unknown.
-
-Do not invent LinkedIn URLs.
-
-### contact_name
-
-Use the best decision maker if found.
-
-Prioritize:
-
-- founder
-- co-founder
-- managing partner
-- CEO
-- growth lead
-- CRO lead
-- conversion strategist
-- head of strategy
-
-Leave blank if unknown.
-
-### contact_role
-
-Use the exact role if visible.
-
-Examples:
-
-- Founder
-- Co-Founder
-- Managing Partner
-- CEO
-- Conversion Strategist
-- CRO Lead
-- Growth Lead
-
-Leave blank if unknown.
-
-### contact_linkedin
-
-Use the decision maker LinkedIn URL if found.
-
-Leave blank if unknown.
-
-Do not invent LinkedIn URLs.
-
-### email
-
-Use only a visible public email.
-
-Leave blank if no visible public email exists.
-
-### city
-
-Use only if reasonably available.
-
-Leave blank if unknown.
-
-### country
-
-Use the country corresponding to the market.
-
-Examples:
+Default markets:
 
 - United States
 - United Kingdom
 
-### offer_type
+Allowed countries:
 
-Use a short description.
+- US
+- UK
 
-Examples:
+Do not source providers outside the US or UK unless the user explicitly asks for another market.
 
-- CRO audit
-- conversion optimization
-- landing page optimization
-- UX audit
-- funnel optimization
-- B2B website optimization
-- website conversion audit
-- growth audit
-
-### packaged_offer
-
-Describe the offer only if visible.
-
-Examples:
-
-- CRO audit for B2B SaaS
-- landing page review
-- website conversion audit
-- funnel optimization sprint
-- conversion research package
-- UX and conversion audit
-- lead-generation website audit
-
-Leave blank if unknown.
-
-### icp_fit
-
-Use:
-
-- `high` if the provider clearly matches the Audit CRO pilot
-- `medium` if the provider has partial fit
-- `low` if fit is weak but not fully rejected
-
-Prefer skipping very weak providers instead of adding low-quality rows.
-
-### why_fit
-
-Keep it short, concrete, and evidence-based.
-
-Good example:
-
-`CRO-focused agency with B2B landing page audits and visible founder contact.`
-
-Bad example:
-
-`Great company that could be a good partner for us.`
-
-### source
-
-Use the main source URL used to qualify the provider.
-
-Prefer the official website or relevant service page over a directory.
-
-### date_added
-
-Use ISO format only:
-
-`YYYY-MM-DD`
-
-### added_by
-
-Always use:
-
-`openclaw`
-
-### status
-
-Default status:
-
-`new`
-
-Use `to_review` if the provider looks interesting but needs human review.
-
-Use `qualified` only if the user specifically asks for qualified status.
-
-Use `rejected` only if the provider clearly does not fit.
-
-### founder_name
-
-Use only if reasonably visible from the website, LinkedIn, or trusted source.
-
-Leave blank if unknown.
-
-### team_size_estimate
-
-Use only if reasonably inferable from the website, LinkedIn, or trusted source.
-
-Examples:
-
-- solo
-- 2-5
-- 6-10
-- 11-25
-- 26-50
-- 50+
-
-Leave blank if unknown.
-
-Do not invent team size.
-
-### b2b_fit
-
-Use:
-
-- `high` if the provider clearly works with B2B, SaaS, professional services, or lead-generation websites
-- `medium` if B2B fit is possible but not obvious
-- `low` if the provider appears mostly consumer, brand, or ecommerce oriented
-
-### ecommerce_risk
-
-Use:
-
-- `low` if the provider is clearly B2B, SaaS, or services-oriented
-- `medium` if ecommerce appears present but not dominant
-- `high` if the provider appears ecommerce-first or ecommerce-only
-
-Do not automatically reject ecommerce risk if the provider has strong B2B conversion work. Mark it clearly.
-
-### pricing_signal
-
-Capture only visible or strongly inferred pricing signal.
-
-Examples:
-
-- audit package visible
-- pricing page visible
-- high-ticket service positioning
-- enterprise pricing
-- no pricing visible
-- retainer positioning
-- project-based service
-
-Do not invent prices.
-
-### email_guess_1, email_guess_2, email_guess_3
-
-Use only for plausible inferred email patterns.
-
-Examples:
-
-- firstname@domain.com
-- hello@domain.com
-- contact@domain.com
-
-Do not put guesses in `email`.
-
-Do not treat guesses as verified.
-
-### selected_email
-
-Use the email selected for outreach if reliable enough.
-
-It can be:
-
-- visible public email
-- verified email
-- best available generic email
-- selected pattern only if the row clearly says `verification_status = pattern_guess`
-
-Leave blank if no reliable email exists.
-
-### prospeo_needed
-
-Use:
-
-- `yes` if further enrichment is needed
-- `no` if a usable selected email exists
-- `no` if the provider is not worth enriching
-
-### source_tool
-
-Follow the detailed `source_tool` guidance defined earlier in this Field guidance section.
-
-Do not use a weaker or different interpretation of `source_tool`.
-
-### email_source_url
-
-Use the URL supporting the email, domain, contact page, or email pattern.
-
-Leave blank only if no email evidence is available.
+If a provider operates internationally but has a clear US or UK presence, it may be retained.
 
 ---
 
-## Search workflow
+## Provider types to prioritize
 
-For each sourcing run:
+Prioritize providers that are commercially aligned with the Audit CRO pilot.
 
-1. Define the target tab as `Prestataires_Audit_CRO`.
-2. Define the market: US or UK.
-3. Define the provider ICP or niche if specified by the user.
-4. Use Tavily to search for CRO providers through targeted queries.
-5. Open and verify the official website.
-6. Check whether the provider clearly offers CRO, UX audit, conversion optimization, funnel optimization, landing page optimization, or website conversion audit.
-7. Check whether the provider works with B2B, SaaS, services, professional services, high-ticket offers, or lead-generation websites.
-8. Identify the best decision maker when possible.
-9. Search the official website for visible email evidence.
-10. Run MX or domain validation if the domain is reliable and no direct email is visible.
-11. Produce email patterns only when name plus domain evidence is strong enough.
-12. Use Hunter Free only if the provider is already qualified and contact name plus domain are available.
-13. Use Prospeo only as fallback if Hunter is unavailable, empty, weak, or insufficient.
-14. Fill the row fields in the exact order.
-15. Do not include providers with unclear fit unless marked `to_review`.
-16. Do not add duplicates.
-17. Return the results in review mode unless writing was explicitly approved.
+Best-fit provider categories:
+
+| Priority | Provider type | Why it fits |
+|---|---|---|
+| High | Boutique CRO agencies | Likely to need qualified client accounts and sales activation |
+| High | UX audit firms | Often close to CRO but may lack outbound lead generation |
+| High | Landing page optimization providers | Strong fit for qualified final-client lead supply |
+| High | Conversion consultants | Lean structure, often open to revenue-sharing or pilot models |
+| Medium | Growth agencies with clear CRO offer | Fit only if CRO is a visible service, not a vague growth claim |
+| Medium | Ecommerce CRO agencies | Fit if they sell audits, experimentation, funnel work |
+| Medium | B2B SaaS conversion agencies | Fit if they target SaaS demos, calls, trials, pipeline conversion |
+| Low | Generic web agencies | Keep only if conversion optimization is clearly positioned |
+| Low | SEO/PPC agencies | Keep only if CRO is a serious visible service |
+| Exclude | Lead gen agencies | Not relevant unless CRO services are explicit |
+| Exclude | Software vendors | Not service providers unless they also provide CRO consulting |
 
 ---
 
-## Recommended search queries
+## Hard exclusions
 
-Use combinations such as:
+Reject the provider if any of the following applies:
 
-- CRO agency B2B SaaS US
-- conversion optimization agency professional services US
-- landing page optimization agency B2B US
-- CRO consultant high ticket services US
-- website conversion audit agency UK
-- B2B conversion optimization consultant UK
-- landing page audit consultant UK
-- CRO agency lead generation websites UK
-- conversion rate optimization consultant SaaS UK
-- UX audit agency B2B services US
-- website conversion audit consultant professional services UK
-- B2B SaaS CRO consultant US
-- lead generation website optimization agency UK
-
-Do not rely only on generic directories.
-
-Always verify through the official website when possible.
+- no clear CRO, UX audit, funnel, experimentation, or landing page optimization service
+- purely a software tool/vendor with no service offer
+- generic digital agency with no serious conversion-focused positioning
+- agency marketplace or directory rather than a provider
+- freelancer profile with no website and no credible proof of activity
+- no reliable website
+- irrelevant geography
+- duplicate of an already sourced provider
+- no credible contact path after enrichment attempts
+- suspicious, inactive, broken, or placeholder website
+- provider appears too large, corporate, or unlikely to buy a small pilot
+- provider is actually a final-client business, not a CRO-related provider
 
 ---
 
-## Sourcing method
+## Ideal provider profile
 
-Use micro-batches.
+A strong provider lead should usually have several of these signals:
 
-Do not attempt large batches immediately.
-
-Preferred batch size:
-
-- check up to 20 provider candidates
-- return or append up to 10 qualified provider rows
-
-For highly specific niches:
-
-- check up to 15 provider candidates
-- return or append up to 5 qualified provider rows
-
-If the user gives a specific limit, follow the user limit.
-
-Never run open-ended searches.
+- clear CRO or conversion optimization positioning
+- sells audits, experimentation, landing page improvement, or funnel optimization
+- works with B2B, SaaS, ecommerce, professional services, or high-ticket services
+- has a founder, principal, managing director, or head of growth identifiable
+- has a small to mid-sized team
+- appears commercially active
+- has case studies, service pages, testimonials, or client examples
+- has a public website
+- has a valid domain with detectable MX records
+- has a direct or likely professional email route
+- could benefit from receiving qualified final-client accounts
+- may be open to a pilot, revenue-share, partner deal, or success-based model
 
 ---
 
-## Cost discipline
+## Discovery strategy
 
-Do not spend Hunter or Prospeo credits on weak providers.
+Use bounded search.
 
-Before using Hunter:
+Do not run endless browsing or broad scraping.
 
-- the provider must be qualified
-- the provider ICP must be confirmed
-- the domain must be reliable
-- MX should appear valid
-- contact name must be available
+Recommended Tavily queries:
 
-Before using Prospeo:
+### US provider queries
 
-- the provider must be qualified
-- Hunter must be unavailable, empty, weak, or insufficient
-- the provider must be worth paid fallback enrichment
+- `site:.com CRO agency United States conversion rate optimization`
+- `site:.com conversion optimization consultant USA`
+- `site:.com landing page optimization agency USA`
+- `site:.com UX audit agency conversion optimization USA`
+- `site:.com B2B SaaS CRO agency USA`
+- `site:.com ecommerce CRO agency USA`
+- `site:.com funnel optimization consultant USA`
 
-A strong qualified provider with no verified email is better than a weak provider with an email.
+### UK provider queries
 
-Do not continue enriching once a reliable selected email exists.
+- `site:.co.uk CRO agency UK conversion rate optimization`
+- `site:.co.uk conversion optimisation consultant UK`
+- `site:.co.uk landing page optimisation agency UK`
+- `site:.co.uk UX audit agency UK`
+- `site:.co.uk ecommerce CRO agency UK`
+- `site:.co.uk B2B SaaS CRO agency UK`
+- `site:.co.uk funnel optimisation consultant UK`
+
+### Founder or consultant queries
+
+- `conversion rate optimisation consultant UK founder`
+- `conversion optimization consultant USA founder`
+- `CRO consultant founder United States`
+- `CRO consultant founder UK`
+- `landing page optimization consultant founder`
+
+---
+
+## Bounded execution rules
+
+Default sourcing run:
+
+- search up to 10 Tavily result pages or result groups
+- visit only the most promising provider websites
+- qualify up to 15 provider candidates
+- retain only the best 5 to 10 qualified providers per run unless the user asks for more
+- stop once enough high-quality providers have been found
+- do not continue searching just to fill volume with weak leads
+
+For each provider, inspect only the minimum pages needed:
+
+- homepage
+- services page
+- about page
+- contact page
+- team page
+- case studies page, if useful
+
+Do not crawl the entire website.
+
+---
+
+## Provider validation checklist
+
+Before retaining a provider, verify:
+
+| Check | Required |
+|---|---|
+| Company or consultant name found | Yes |
+| Website found | Yes |
+| Country is US or UK | Yes |
+| CRO or adjacent service is visible | Yes |
+| Provider is not a final-client lead | Yes |
+| Contact route exists or enrichment path is possible | Yes |
+| Clear reason why they fit the Audit CRO pilot | Yes |
+| Duplicate check performed | Yes |
+
+---
+
+## Contact enrichment logic
+
+The goal is to identify the best available professional contact for the provider.
+
+Priority contacts:
+
+1. founder
+2. co-founder
+3. managing director
+4. principal consultant
+5. head of CRO
+6. head of growth
+7. head of strategy
+8. partnerships contact
+9. generic business email if no person is available
+
+Do not invent names, roles, LinkedIn URLs, or emails.
+
+---
+
+## Email enrichment sequence
+
+Follow this exact sequence.
+
+### Step 1: Public email search
+
+First, look for a public email on:
+
+- homepage
+- contact page
+- about page
+- team page
+- privacy policy page
+- footer
+- agency directory profile, if high quality
+
+If a public email is found, capture:
+
+- email
+- source URL
+- email type: public
+- confidence: high
+
+### Step 2: Domain and MX check
+
+If no public email is found, identify the provider domain.
+
+Check whether the domain has MX records.
+
+If MX records are valid, record:
+
+- domain
+- MX status: valid
+- email enrichment route: pattern_detection
+
+If MX records are missing or invalid, do not guess an email.
+
+Record:
+
+- MX status: invalid or not_found
+- email enrichment route: blocked
+- enrichment note explaining why
+
+### Step 3: Pattern detection
+
+If MX records are valid and a decision maker name is available, infer possible email patterns.
+
+Allowed pattern examples:
+
+- `firstname@domain.com`
+- `firstnamelastname@domain.com`
+- `firstname.lastname@domain.com`
+- `firstinitiallastname@domain.com`
+- `hello@domain.com`
+- `contact@domain.com`
+- `info@domain.com`
+
+Pattern detection is not final proof.
+
+Only use a pattern email as selected email if it is verified or strongly supported by public evidence.
+
+Do not write guessed emails as confirmed emails.
+
+### Step 4: Hunter Free lookup
+
+If no public email is found and pattern detection is uncertain, use Hunter Free lookup when available.
+
+Use Hunter to find:
+
+- company domain emails
+- named decision-maker email
+- generic business contact email
+- confidence score, if available
+
+If Hunter returns a usable email, record:
+
+- selected email
+- source: Hunter
+- confidence: medium or high depending on Hunter evidence
+- enrichment route: hunter
+
+### Step 5: Prospeo fallback flag
+
+If public email, pattern detection, and Hunter do not provide a usable email, do not force enrichment.
+
+Flag the lead as:
+
+- `prospeo_needed = yes`
+- `selected_email = blank`
+- `email_confidence = low`
+- `enrichment_status = pending_prospeo`
+
+This keeps the provider usable for later paid enrichment without inventing data.
+
+---
+
+## Email selection rules
+
+Use only one selected email per provider.
+
+Email priority:
+
+1. named decision-maker email verified or publicly visible
+2. founder or leadership email from Hunter
+3. generic business email publicly visible
+4. generic business email from Hunter
+5. blank with `prospeo_needed = yes`
+
+Never select:
+
+- guessed but unverified personal emails
+- role emails from unrelated directories
+- emails from another company
+- outdated emails from suspicious sources
+- scraped emails without a source
+- malformed emails
+- personal Gmail/Yahoo/Outlook emails unless clearly used professionally by the consultant
+
+---
+
+## LinkedIn rules
+
+LinkedIn URLs are useful but not mandatory.
+
+Capture LinkedIn only if found from a reliable source:
+
+- official website
+- founder profile linked from website
+- company LinkedIn page
+- reliable search result
+
+Do not invent LinkedIn URLs.
+
+Do not guess profile slugs.
+
+If unsure, leave blank.
+
+---
+
+## Qualification scoring
+
+Assign one of three priority scores:
+
+| Score | Meaning |
+|---|---|
+| high | Strong CRO provider, clear services, credible, likely to understand the pilot offer, good contact route |
+| medium | Relevant provider but less specialized, weaker contact data, or less obvious commercial fit |
+| low | Marginal fit, generic agency, weak CRO positioning, or poor contactability |
+
+Use `low` only if the user explicitly wants broader sourcing.
+
+Default retained providers should be `high` or `medium`.
+
+---
+
+## Fit assessment
+
+For every retained provider, produce a short and concrete `why_fit`.
+
+Good examples:
+
+- `Boutique CRO agency focused on landing page and funnel optimization; likely fit for qualified account supply.`
+- `UK conversion consultant with clear audit and experimentation offer; could use sourced client accounts for business development.`
+- `B2B SaaS CRO agency with conversion audit services and founder-led structure; good fit for pilot outreach.`
+
+Bad examples:
+
+- `Looks good.`
+- `Interesting agency.`
+- `Could be relevant.`
+- `Website seems nice.`
+- `Might need clients.`
 
 ---
 
 ## Duplicate prevention
 
-Before adding a provider, check for duplicates if duplicate detection is available.
+Before handing a provider to the Sheet Writer, check for duplicates using:
 
-Use these duplicate keys:
+- company name
+- website domain
+- LinkedIn company URL
+- selected email
+- founder email, if available
 
+If duplicate risk exists, do not append blindly.
+
+Mark the provider as duplicate risk and ask the Sheet Writer or run controller to skip or verify.
+
+---
+
+## Required output before Sheet Writer handoff
+
+For each retained provider, prepare a structured object with the fields required by the `Prestataires_Audit_CRO` tab.
+
+Use the current column schema defined in the Audit CRO Google Sheet and the `audit-cro-sheet-writer` skill.
+
+Do not reorder columns manually unless the Sheet Writer explicitly requires it.
+
+Minimum provider data should include, when available:
+
+- provider_name
+- country
+- city_state
+- provider_type
 - website
-- company_name
-- linkedin_url
+- domain
+- linkedin_company_url
+- decision_maker_first_name
+- decision_maker_last_name
+- decision_maker_full_name
+- decision_maker_role
+- decision_maker_linkedin_url
 - selected_email
-- email
-- contact_linkedin
+- email_type
+- email_source
+- email_source_url
+- email_confidence
+- mx_status
+- email_pattern_detected
+- hunter_used
+- hunter_result
+- prospeo_needed
+- enrichment_status
+- services_offered
+- target_clients
+- cro_specialization
+- proof_points
+- why_fit
+- priority_score
+- source_query
+- source_url
+- qualification_notes
+- duplicate_check_status
 
-If a provider already exists:
+If a value is unknown, leave it blank.
 
-- do not create a new row
-- return the company as skipped
-- explain the duplicate reason
-
-If new information is found for an existing provider:
-
-- do not overwrite the sheet
-- return the update suggestion to the user
-
----
-
-## Already treated / duplicate clarity rule
-
-If a candidate is described as already treated, already present, duplicate, already in the Sheet, or previously processed, do not include it as a valid candidate.
-
-Return it only in the skipped section with the reason:
-
-`duplicate / already in sheet`
-
-Never say that a candidate is already treated and then include it as a qualified candidate in the same output.
-
-If direct Sheet access is unavailable, do not assume the candidate is not a duplicate.
-
-In that case:
-- continue review mode only
-- say duplicate status is unknown outside the 32-field table
-- do not write without duplicate protection through the Sheet Writer endpoint
+Do not invent missing values.
 
 ---
 
-## Review mode vs write mode
+## Handoff to Sheet Writer
 
-Default mode is review mode.
+After preparing qualified provider rows, hand them to:
 
-In review mode:
+`audit-cro-sheet-writer`
 
-- search and validate providers
-- do not write to the Sheet
-- return qualified providers for user review
-- include skipped providers and reasons when useful
+The Sheet Writer is responsible for:
 
-Use review mode when the user says:
+- selecting the correct endpoint
+- appending to `Prestataires_Audit_CRO`
+- enforcing the exact column order
+- preventing forbidden tab writes
+- handling duplicate responses
+- treating HTTP errors as authoritative
 
-- source
-- find
-- cherche
-- identify
-- build a list
-- review
-- qualify
-- shortlist
+This skill must not call Google Sheets directly.
 
-Write mode is allowed only when the user explicitly says:
+This skill must not write to:
 
-- append
-- write
-- add to the sheet
-- proceed
-- yes
-- go
-- continue
-- ajoute
-- écris dans le sheet
-- ajoute au sheet
-
-When writing is approved:
-
-- use the Audit CRO Sheet Writer only
-- use the approved Railway endpoint only
-- do not write directly to Google Sheets
-- do not use local file write
-- do not bypass the endpoint
-- do not claim success unless the endpoint confirms success
+- `Clients_Finaux_Audit_CRO`
+- `README`
+- `Business_Model`
+- `Matching_Intro`
+- `Outreach_Tracker`
+- `Leads_Envoyés_au_Presta`
+- `Revenue_Tracker`
+- `Budget_Tracker`
+- `Dashboard`
 
 ---
 
-## Output format
+## Run summary required
 
-When asked to return results without writing to the Sheet, output a table with the exact 32 `Prestataires_Audit_CRO` fields.
+At the end of each provider sourcing run, summarize:
 
-Use these column names only:
+- number of providers searched
+- number of providers retained
+- number of duplicates skipped
+- number of public emails found
+- number of Hunter lookups used
+- number of leads flagged for Prospeo
+- number of high, medium, and low priority leads
+- main observations
+- next recommended action
 
-id, market, company_name, website, linkedin_url, contact_name, contact_role, contact_linkedin, email, city, country, offer_type, packaged_offer, icp_fit, why_fit, source, date_added, added_by, status, founder_name, team_size_estimate, b2b_fit, ecommerce_risk, pricing_signal, email_guess_1, email_guess_2, email_guess_3, verification_status, selected_email, prospeo_needed, source_tool, email_source_url.
+Example summary format:
 
-Do not return summary tables.
+```text
+Provider sourcing run complete.
 
-Do not return transposed tables.
+Searched: 24 providers
+Retained: 8 providers
+Skipped duplicates: 2
+Public emails found: 4
+Hunter lookups used: 3
+Prospeo needed: 1
+Priority split: 5 high, 3 medium, 0 low
 
-Do not return custom fields.
+Main observation:
+Most strong fits were boutique CRO and landing page optimization providers. Generic growth agencies were weaker unless CRO was clearly positioned.
 
-Do not include Notes, Description, Website section, Services, or duplicate_status inside the 32-field table.
+Next action:
+Send retained rows to audit-cro-sheet-writer for append into Prestataires_Audit_CRO.
 
-If additional context is needed, put it below the table as a short skipped / missing items note.
+Non-negotiable rules
+Do not source final clients with this skill.
+Do not write directly to Google Sheets.
+Do not invent emails.
+Do not invent decision makers.
+Do not invent LinkedIn URLs.
+Do not retain weak generic agencies just to fill volume.
+Do not run unbounded searches.
+Do not use Prospeo automatically unless explicitly configured and authorized.
+Do not mix provider rows with client-final rows.
+Do not overwrite or edit existing Sheet rows.
+Do not continue searching once the run has enough qualified providers.
+Always prefer verified, sourced, and explainable data over volume.
+Success condition
 
-When asked to write results, use the approved Sheet Writer only.
-
----
-
-## Review mode output
-
-If the run is in review mode, return:
-
-- target tab
-- selected market
-- selected provider ICP or niche
-- candidate limit used
-- a table using the exact 32 `Prestataires_Audit_CRO` fields
-- skipped providers with reasons, if useful
-- missing enrichment items, if any
-
-The provider table must use the 32 fields in the exact sheet order.
-
-Do not claim that rows were added.
-
-Do not call the Sheet Writer.
-
-If fewer candidates are found than requested, return fewer candidates with reasons.
-
-Do not invent extra candidates to reach the target volume.
-
----
-
-## Write mode output
-
-After writing rows, return only:
-
-- exact rows added count
-- companies successfully appended
-- companies skipped or failed with reason
-
-The count must match the number of companies listed.
-
-If 9 companies were appended, say 9.
-
-If 8 companies were appended, list only 8.
-
-Never claim a row was added unless the write action returned success.
-
-If there is any inconsistency between attempted rows and successfully written rows, clearly state it.
-
----
-
-## No placeholder values rule
-
-Never use placeholders as real data.
-
-Forbidden placeholder examples:
-
-- Founder
-- founder name
-- CEO as contact_name
-- CRO Lead as contact_name
-- unknown
-- n/a
-- TBD
-- LinkedIn URLs that are guessed from names
-- emails that are guessed without being placed in email_guess fields
-
-If the exact value is not known, leave the field blank.
-
-Roles such as CEO, Founder, CRO Lead, or Managing Partner may only be used in `contact_role`, never as `contact_name`.
-
-A person name must be a real visible name, not a job title.
-
----
-
-## Safety rules
-
-- Do not invent companies.
-- Do not invent contacts.
-- Do not invent emails.
-- Do not invent LinkedIn URLs.
-- Do not invent pricing.
-- Do not invent team size.
-- Do not invent sources.
-- Do not classify generic agencies as CRO providers without evidence.
-- Do not spend Prospeo credits unless the provider is otherwise relevant.
-- Do not write to the Sheet directly.
-- Do not overwrite existing rows.
-- Keep all justifications short and concrete.
-- - Do not output summary tables when the 32-field schema is required.
-- Do not return 32 values in the wrong order.
-- Do not include custom fields inside the provider schema.
-- Do not use masked emails as valid emails.
-- Do not include already treated or duplicate candidates as valid candidates.
-- Do not invent extra candidates to reach a requested volume.
+A successful run produces a small, clean, verified batch of Audit CRO provider leads that are commercially relevant, contactable or enrichable, and ready to be appended to the Prestataires_Audit_CRO tab through the Sheet Writer.
