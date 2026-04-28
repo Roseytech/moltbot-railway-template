@@ -1,29 +1,44 @@
 ---
 name: audit-cro-prestataires-sourcing
-description: Mandatory sourcing skill for finding and qualifying Audit CRO providers, CRO agencies, UX audit firms, landing page optimization providers, and conversion optimization consultants for the Prestataires_Audit_CRO tab. Enforces bounded Tavily discovery, website validation, MX and email pattern detection, Hunter Free lookup, Prospeo fallback flagging, and correct handoff to the Audit CRO Sheet Writer.
-
+description: Mandatory sourcing skill for finding and qualifying Audit CRO providers, CRO agencies, UX audit firms, landing page optimization providers, and conversion optimization consultants for the Prestataires_Audit_CRO tab. Enforces bounded Tavily discovery, website validation, email evidence discipline, MX and email pattern detection, Hunter Free lookup, Prospeo fallback flagging, and correct handoff to the Audit CRO Sheet Writer.
 ---
 
 # Audit CRO Prestataires Sourcing
+
+## Quick critical rules
+
+This skill is only for sourcing providers for the `Prestataires_Audit_CRO` tab.
+
+A provider is a company, agency, consultant, studio, or boutique firm that sells CRO, UX audit, landing page optimization, funnel optimization, experimentation, or conversion optimization services.
+
+This skill must never source final clients.
+
+Writing must always go through `audit-cro-sheet-writer`.
+
+Real writes must use the preferred named `row` object format.
+
+Do not use a `values` array for real writes unless explicitly requested for a legacy diagnostic test.
+
+For `Prestataires_Audit_CRO`, use the canonical 32-field schema defined in `audit-cro-sheet-writer`.
+
+If a public email is selected for outreach, fill both:
+
+- `email`
+- `selected_email`
+
+`why_fit` must explain why the provider may be relevant for the Audit CRO pilot offer, not merely why the company provides CRO services.
+
+Do not infer extra fields.
+
+Do not invent emails, contacts, LinkedIn URLs, companies, websites, roles, or sources.
+
+---
 
 ## Objective
 
 Find and qualify CRO providers that could buy or test the Audit CRO pilot offer.
 
 This skill is used only to source potential providers for the `Prestataires_Audit_CRO` tab.
-
-A provider is a company, agency, consultant, studio, or boutique firm that sells services related to:
-
-- conversion rate optimization
-- CRO audit
-- landing page optimization
-- UX audit
-- funnel optimization
-- website conversion improvement
-- experimentation
-- A/B testing strategy
-- ecommerce conversion optimization
-- B2B SaaS conversion optimization
 
 The goal is not to find final clients with CRO problems.
 
@@ -87,7 +102,7 @@ Default markets:
 - United States
 - United Kingdom
 
-Allowed countries:
+Allowed markets:
 
 - US
 - UK
@@ -102,17 +117,15 @@ If a provider operates internationally but has a clear US or UK presence, it may
 
 Prioritize providers that are commercially aligned with the Audit CRO pilot.
 
-Best-fit provider categories:
-
 | Priority | Provider type | Why it fits |
 |---|---|---|
 | High | Boutique CRO agencies | Likely to need qualified client accounts and sales activation |
 | High | UX audit firms | Often close to CRO but may lack outbound lead generation |
 | High | Landing page optimization providers | Strong fit for qualified final-client lead supply |
-| High | Conversion consultants | Lean structure, often open to revenue-sharing or pilot models |
+| High | Conversion consultants | Lean structure, often open to revenue-share or pilot models |
 | Medium | Growth agencies with clear CRO offer | Fit only if CRO is a visible service, not a vague growth claim |
 | Medium | Ecommerce CRO agencies | Fit if they sell audits, experimentation, funnel work |
-| Medium | B2B SaaS conversion agencies | Fit if they target SaaS demos, calls, trials, pipeline conversion |
+| Medium | B2B SaaS conversion agencies | Fit if they target SaaS demos, calls, trials, or pipeline conversion |
 | Low | Generic web agencies | Keep only if conversion optimization is clearly positioned |
 | Low | SEO/PPC agencies | Keep only if CRO is a serious visible service |
 | Exclude | Lead gen agencies | Not relevant unless CRO services are explicit |
@@ -125,7 +138,7 @@ Best-fit provider categories:
 Reject the provider if any of the following applies:
 
 - no clear CRO, UX audit, funnel, experimentation, or landing page optimization service
-- purely a software tool/vendor with no service offer
+- purely a software tool or vendor with no service offer
 - generic digital agency with no serious conversion-focused positioning
 - agency marketplace or directory rather than a provider
 - freelancer profile with no website and no credible proof of activity
@@ -228,12 +241,12 @@ Before retaining a provider, verify:
 |---|---|
 | Company or consultant name found | Yes |
 | Website found | Yes |
-| Country is US or UK | Yes |
+| Market is US or UK | Yes |
 | CRO or adjacent service is visible | Yes |
 | Provider is not a final-client lead | Yes |
 | Contact route exists or enrichment path is possible | Yes |
 | Clear reason why they fit the Audit CRO pilot | Yes |
-| Duplicate check performed | Yes |
+| Duplicate check performed if available | Yes |
 
 ---
 
@@ -275,10 +288,16 @@ First, look for a public email on:
 
 If a public email is found, capture:
 
-- email
-- source URL
-- email type: public
-- confidence: high
+- `email`
+- `selected_email`
+- `email_source_url`
+- `verification_status = verified`
+- `prospeo_needed = no`
+- `source_tool = official_website` or the actual source used
+
+If a public email is found and selected for outreach, fill both `email` and `selected_email`.
+
+Do not leave `email` blank when `selected_email` comes from a verified public source.
 
 ### Step 2: Domain and MX check
 
@@ -286,19 +305,17 @@ If no public email is found, identify the provider domain.
 
 Check whether the domain has MX records.
 
-If MX records are valid, record:
+If MX records are valid, use:
 
-- domain
-- MX status: valid
-- email enrichment route: pattern_detection
+- `verification_status = domain_mx_ok`
+- `source_tool = mx_lookup`
 
 If MX records are missing or invalid, do not guess an email.
 
-Record:
+Use:
 
-- MX status: invalid or not_found
-- email enrichment route: blocked
-- enrichment note explaining why
+- `verification_status = invalid` or `no_email_found`
+- `prospeo_needed = yes`
 
 ### Step 3: Pattern detection
 
@@ -314,11 +331,17 @@ Allowed pattern examples:
 - `contact@domain.com`
 - `info@domain.com`
 
+Use unverified pattern guesses only in:
+
+- `email_guess_1`
+- `email_guess_2`
+- `email_guess_3`
+
 Pattern detection is not final proof.
 
-Only use a pattern email as selected email if it is verified or strongly supported by public evidence.
+Do not put a guessed pattern in `email` unless it is verified or publicly supported.
 
-Do not write guessed emails as confirmed emails.
+Do not put a guessed pattern in `selected_email` unless it is the best available outreach email and clearly marked with `verification_status = pattern_guess`.
 
 ### Step 4: Hunter Free lookup
 
@@ -333,21 +356,24 @@ Use Hunter to find:
 
 If Hunter returns a usable email, record:
 
-- selected email
-- source: Hunter
-- confidence: medium or high depending on Hunter evidence
-- enrichment route: hunter
+- `selected_email`
+- `source_tool = hunter`
+- `verification_status = verified`, `risky`, or `pattern_guess` depending on Hunter evidence
+- `email_source_url` if available
+- `prospeo_needed = no`
+
+If Hunter provides a generic email that is reliable enough for outreach, it may also be copied into `email`.
 
 ### Step 5: Prospeo fallback flag
 
 If public email, pattern detection, and Hunter do not provide a usable email, do not force enrichment.
 
-Flag the lead as:
+Use:
 
+- `email = ""`
+- `selected_email = ""`
+- `verification_status = no_email_found`
 - `prospeo_needed = yes`
-- `selected_email = blank`
-- `email_confidence = low`
-- `enrichment_status = pending_prospeo`
 
 This keeps the provider usable for later paid enrichment without inventing data.
 
@@ -375,29 +401,6 @@ Never select:
 - malformed emails
 - personal Gmail/Yahoo/Outlook emails unless clearly used professionally by the consultant
 
-## Provider email field consistency
-
-If a public email is found and selected for outreach, fill both:
-
-- `email`
-- `selected_email`
-
-Do not leave `email` blank when `selected_email` comes from a verified public source.
-
-If the email is only guessed or pattern-based, do not put it in `email` unless it is verified or publicly supported.
-
-Use:
-
-- `email_guess_1`
-- `email_guess_2`
-- `email_guess_3`
-
-for unverified pattern guesses.
-
-Use `selected_email` only when the email is the best available outreach email.
-
-If no reliable email is available, leave `email` and `selected_email` blank, set `verification_status = no_email_found`, and set `prospeo_needed = yes`.
-
 ---
 
 ## LinkedIn rules
@@ -421,7 +424,7 @@ If unsure, leave blank.
 
 ## Qualification scoring
 
-Assign one of three priority scores:
+Assign one of three priority scores in `icp_fit`:
 
 | Score | Meaning |
 |---|---|
@@ -435,29 +438,36 @@ Default retained providers should be `high` or `medium`.
 
 ---
 
-## Fit assessment
+## Provider why_fit rule
 
 For every retained provider, produce a short and concrete `why_fit`.
 
+`why_fit` must explain why the provider may be relevant for the Audit CRO pilot offer.
+
+It must not only describe that the company provides CRO services.
+
 Good examples:
 
-- `Boutique CRO agency focused on landing page and funnel optimization; likely fit for qualified account supply.`
-- `UK conversion consultant with clear audit and experimentation offer; could use sourced client accounts for business development.`
-- `B2B SaaS CRO agency with conversion audit services and founder-led structure; good fit for pilot outreach.`
+- `Boutique CRO consultancy with clear audit and landing page optimization offer; likely relevant for testing qualified account supply.`
+- `Founder-led conversion agency with B2B focus and public contact route; good fit for a small pilot offer.`
+- `UX/CRO provider serving high-value service businesses; relevant for a qualified lead activation pilot.`
 
 Bad examples:
 
-- `Looks good.`
-- `Interesting agency.`
+- `They offer CRO services.`
+- `They are a strong CRO agency.`
+- `They have guaranteed results.`
+- `Their website looks professional.`
 - `Could be relevant.`
-- `Website seems nice.`
 - `Might need clients.`
 
 ---
 
 ## Duplicate prevention
 
-Before handing a provider to the Sheet Writer, check for duplicates using:
+Before handing a provider to the Sheet Writer, check for duplicates when duplicate detection is available.
+
+Use the following duplicate keys:
 
 - company name
 - website domain
@@ -469,89 +479,15 @@ If duplicate risk exists, do not append blindly.
 
 Mark the provider as duplicate risk and ask the Sheet Writer or run controller to skip or verify.
 
----
-
-## Required output before Sheet Writer handoff
-
-For each retained provider, prepare the provider data according to the exact field order required by the `Prestataires_Audit_CRO` tab.
-
-The field order must never be inferred from a JSON object.
-
-The field order must be the exact ordered schema defined in the `audit-cro-sheet-writer` skill.
-
-Before handoff, produce two structures:
-
-1. `provider_object`
-   - Used only for readability and validation.
-   - Keys may be unordered.
-   - Must not be used directly for writing.
-
-2. `ordered_row_values`
-   - Required for Sheet Writer handoff.
-   - Must be a JSON array.
-   - Must follow the exact column order of `Prestataires_Audit_CRO`.
-   - Must contain exactly the same number of values as the target Sheet columns.
-   - Unknown values must be represented as an empty string `""`.
-   - No column may be skipped.
-   - No extra value may be added.
-
-The Sheet Writer must reject the row if:
-
-- `ordered_row_values` is missing
-- `ordered_row_values` is not an array
-- the number of values does not match the expected column count
-- the tab is not `Prestataires_Audit_CRO`
-- the row contains invented emails, names, LinkedIn URLs, or websites
-
-Do not rely on object key order.
-
-Do not let the endpoint guess the order.
-
-Do not send a provider row to the Sheet Writer unless the ordered array has been validated.
+If the Railway endpoint returns duplicate or HTTP 409, treat it as authoritative and do not bypass the endpoint.
 
 ---
 
-## Handoff to Sheet Writer
+## Prestataires_Audit_CRO allowed row fields
 
-After preparing qualified provider rows, hand them to:
+For `Prestataires_Audit_CRO`, use only the canonical 32 fields defined in `audit-cro-sheet-writer`.
 
-`audit-cro-sheet-writer`
-
-The handoff payload must include:
-
-- `target_tab`: `Prestataires_Audit_CRO`
-- `provider_object`: readable validation object
-- `ordered_row_values`: final ordered array for append
-- `field_order_source`: `audit-cro-sheet-writer`
-- `dry_run`: true or false
-
-The `ordered_row_values` array is the only structure that may be used for appending into Google Sheets.
-
-The `provider_object` is only a validation aid.
-
-The Sheet Writer is responsible for:
-
-- enforcing the exact column order
-- checking the expected number of columns
-- appending only to `Prestataires_Audit_CRO`
-- preventing forbidden tab writes
-- rejecting malformed rows
-- handling duplicate responses
-- treating HTTP errors as authoritative
-
-This skill must not call Google Sheets directly.
-
-This skill must not write directly to the endpoint.
-
-This skill must not pass unordered objects as final rows.
-
----
-
-## Prestataires_Audit_CRO handoff field order
-
-When preparing provider rows for Sheet Writer handoff, use the canonical field order defined in `audit-cro-sheet-writer`.
-
-For `Prestataires_Audit_CRO`, the expected ordered row is:
+Allowed fields:
 
 1. `id`
 2. `market`
@@ -586,31 +522,228 @@ For `Prestataires_Audit_CRO`, the expected ordered row is:
 31. `source_tool`
 32. `email_source_url`
 
-The final handoff must include `ordered_row_values` as a JSON array with exactly 32 values.
-
-Do not infer missing columns.
-
 Do not add provider-specific fields not present in this schema.
 
-Do not send unordered objects as final rows.
+Do not use:
 
-## Run summary required
+- `provider_signal_1`
+- `provider_signal_2`
+- `provider_signal_3`
+- `provider_signal_4`
+- `provider_signal_5`
+- `email_confidence`
+- `enrichment_status`
+- `mx_status`
+- `email_type`
+- `provider_role`
+- `provider_specialty`
+- `provider_revenue_range`
+- `provider_geo_focus`
+- `provider_client_fit`
+- `provider_lead_gen_focus`
+- `provider_paid_enrichment`
+- `provider_last_contacted`
+
+If a useful data point has no matching field, summarize it briefly inside an existing field such as `why_fit`, `pricing_signal`, or `source`.
+
+---
+
+## Required provider row before Sheet Writer handoff
+
+For each retained provider, prepare a named `row` object.
+
+The row object must use only the allowed `Prestataires_Audit_CRO` fields.
+
+Minimum required fields before writing:
+
+- `id`
+- `market`
+- `company_name`
+- `website`
+- `country`
+- `offer_type`
+- `icp_fit`
+- `why_fit`
+- `source`
+- `date_added`
+- `added_by`
+- `status`
+- `verification_status`
+- `prospeo_needed`
+- `source_tool`
+
+Recommended fields when available:
+
+- `linkedin_url`
+- `contact_name`
+- `contact_role`
+- `contact_linkedin`
+- `email`
+- `city`
+- `packaged_offer`
+- `founder_name`
+- `team_size_estimate`
+- `b2b_fit`
+- `ecommerce_risk`
+- `pricing_signal`
+- `email_guess_1`
+- `email_guess_2`
+- `email_guess_3`
+- `selected_email`
+- `email_source_url`
+
+Unknown optional values may be omitted from the named `row` object.
+
+Do not invent missing values.
+
+Do not pass unordered free-form data as final row data.
+
+Do not use a 32-value array for real writes unless the user explicitly asks for a legacy diagnostic test.
+
+---
+
+## Handoff to Sheet Writer
+
+After preparing qualified provider rows, hand them to:
+
+`audit-cro-sheet-writer`
+
+The handoff payload must use the preferred named row object format:
+
+```json
+{
+  "row": {
+    "id": "...",
+    "market": "US",
+    "company_name": "...",
+    "website": "...",
+    "country": "US",
+    "offer_type": "...",
+    "icp_fit": "high",
+    "why_fit": "...",
+    "source": "...",
+    "date_added": "YYYY-MM-DD",
+    "added_by": "openclaw",
+    "status": "new",
+    "verification_status": "no_email_found",
+    "prospeo_needed": "yes",
+    "source_tool": "official_website"
+  }
+}
+
+The Sheet Writer is responsible for:
+
+selecting the correct endpoint
+appending to Prestataires_Audit_CRO
+using the Railway server mapping into the exact A:AF schema
+preventing forbidden tab writes
+handling duplicate responses
+treating HTTP errors as authoritative
+
+This skill must not call Google Sheets directly.
+
+This skill must not write directly to the endpoint.
+
+This skill must not send provider rows to the clients endpoint.
+
+This skill must not use values arrays for real writes unless explicitly required by the user for a legacy diagnostic test.
+
+Allowed values
+
+Use only the following values where applicable.
+
+market
+US
+UK
+icp_fit
+high
+medium
+low
+b2b_fit
+high
+medium
+low
+ecommerce_risk
+low
+medium
+high
+verification_status
+not_checked
+domain_mx_ok
+pattern_guess
+verified
+risky
+invalid
+no_email_found
+prospeo_needed
+yes
+no
+source_tool
+tavily
+official_website
+google_search
+directory
+mx_lookup
+pattern_detection
+hunter
+prospeo
+manual
+added_by
+openclaw
+status
+new
+to_review
+qualified
+rejected
+contacted
+
+Default status:
+
+new
+Source tool selection
+
+If multiple tools were used, choose the strongest source in this order:
+
+official_website
+hunter
+prospeo
+directory
+mx_lookup
+pattern_detection
+tavily
+google_search
+manual
+
+Do not use tavily as the default value if another tool provided stronger email or contact evidence.
+
+Use official_website if the email was found directly on the company website.
+
+Use hunter only if Hunter provided the selected email.
+
+Use prospeo only if Prospeo provided the selected email.
+
+Use mx_lookup only if only domain-level validation was completed.
+
+Use pattern_detection only if only pattern guesses were produced.
+
+Run summary required
 
 At the end of each provider sourcing run, summarize:
 
-- number of providers searched
-- number of providers retained
-- number of duplicates skipped
-- number of public emails found
-- number of Hunter lookups used
-- number of leads flagged for Prospeo
-- number of high, medium, and low priority leads
-- main observations
-- next recommended action
+number of providers searched
+number of providers retained
+number of duplicates skipped
+number of public emails found
+number of Hunter lookups used
+number of leads flagged for Prospeo
+number of high, medium, and low priority leads
+companies written
+companies skipped
+exact API responses if writing occurred
+main observations
+next recommended action
 
 Example summary format:
-
-```text
 Provider sourcing run complete.
 
 Searched: 24 providers
@@ -620,12 +753,13 @@ Public emails found: 4
 Hunter lookups used: 3
 Prospeo needed: 1
 Priority split: 5 high, 3 medium, 0 low
+Rows added: 8
 
 Main observation:
 Most strong fits were boutique CRO and landing page optimization providers. Generic growth agencies were weaker unless CRO was clearly positioned.
 
 Next action:
-Send retained rows to audit-cro-sheet-writer for append into Prestataires_Audit_CRO.
+Review the added providers in Prestataires_Audit_CRO before launching outreach.
 
 Non-negotiable rules
 Do not source final clients with this skill.
@@ -639,7 +773,8 @@ Do not use Prospeo automatically unless explicitly configured and authorized.
 Do not mix provider rows with client-final rows.
 Do not overwrite or edit existing Sheet rows.
 Do not continue searching once the run has enough qualified providers.
+Do not use a values array for real writes unless explicitly requested for a legacy diagnostic test.
 Always prefer verified, sourced, and explainable data over volume.
 Success condition
 
-A successful run produces a small, clean, verified batch of Audit CRO provider leads that are commercially relevant, contactable or enrichable, and ready to be appended to the Prestataires_Audit_CRO tab through the Sheet Writer.
+A successful run produces a small, clean, verified batch of Audit CRO provider leads that are commercially relevant, contactable or enrichable, and ready to be appended to the Prestataires_Audit_CRO tab through audit-cro-sheet-writer using the preferred named row object format.
