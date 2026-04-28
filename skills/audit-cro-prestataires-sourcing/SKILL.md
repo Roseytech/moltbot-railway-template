@@ -289,6 +289,29 @@ Accepted email sources:
 
 Do not use emails from suspicious, scraped, or low-quality sources.
 
+## Masked and placeholder email rule
+
+Do not use masked, protected, obfuscated, placeholder, or unreadable emails.
+
+Invalid examples:
+
+- `[email protected]`
+- `name[at]domain.com` unless clearly normalized from an official visible source
+- partially hidden emails
+- image-only emails that cannot be read reliably
+- emails from screenshots that are not clearly readable
+- emails from low-quality scraped sources
+- guessed emails presented as visible emails
+
+If the exact email is not clearly visible on a reliable source, leave:
+
+- `email` blank
+- `selected_email` blank
+- `verification_status = no_email_found`
+- `prospeo_needed = yes`
+
+Only set `verification_status = verified` when the exact email is visible on an official website, trusted directory, Hunter result, or Prospeo result.
+
 ---
 
 ## Verification status values
@@ -456,6 +479,61 @@ Writable range:
 `Prestataires_Audit_CRO!A:AF`
 
 Manual columns after this point must not be filled by this skill unless explicitly requested by the user.
+
+## Strict 32-field review output rule
+
+In provider review mode, always return candidates using the exact 32 fields of `Prestataires_Audit_CRO` in the exact sheet order.
+
+The required field order is:
+
+1. id
+2. market
+3. company_name
+4. website
+5. linkedin_url
+6. contact_name
+7. contact_role
+8. contact_linkedin
+9. email
+10. city
+11. country
+12. offer_type
+13. packaged_offer
+14. icp_fit
+15. why_fit
+16. source
+17. date_added
+18. added_by
+19. status
+20. founder_name
+21. team_size_estimate
+22. b2b_fit
+23. ecommerce_risk
+24. pricing_signal
+25. email_guess_1
+26. email_guess_2
+27. email_guess_3
+28. verification_status
+29. selected_email
+30. prospeo_needed
+31. source_tool
+32. email_source_url
+
+A row with 32 values but wrong field order is invalid.
+
+Never return provider review results as:
+- a transposed table with field names as rows and companies as columns
+- a summary table with custom fields
+- a compact JSON array unless every position is correctly mapped
+- a table using fields such as Notes, Description, Website section, Services, or Company
+
+If a value is unknown, leave the field blank.
+
+Do not remove the field.
+
+Do not shift values left to fill blanks.
+
+Before returning review rows, verify that each candidate can be mapped to the 32 fields above without ambiguity.
 
 ---
 
@@ -919,6 +997,25 @@ If new information is found for an existing provider:
 
 ---
 
+## Already treated / duplicate clarity rule
+
+If a candidate is described as already treated, already present, duplicate, already in the Sheet, or previously processed, do not include it as a valid candidate.
+
+Return it only in the skipped section with the reason:
+
+`duplicate / already in sheet`
+
+Never say that a candidate is already treated and then include it as a qualified candidate in the same output.
+
+If direct Sheet access is unavailable, do not assume the candidate is not a duplicate.
+
+In that case:
+- continue review mode only
+- say duplicate status is unknown outside the 32-field table
+- do not write without duplicate protection through the Sheet Writer endpoint
+
+---
+
 ## Review mode vs write mode
 
 Default mode is review mode.
@@ -967,20 +1064,23 @@ When writing is approved:
 
 ## Output format
 
-When asked to return results without writing to the sheet, output a table with the exact `Prestataires_Audit_CRO` fields.
+When asked to return results without writing to the Sheet, output a table with the exact 32 `Prestataires_Audit_CRO` fields.
 
-When asked to write results, use the approved sheet writing mechanism only.
+Use these column names only:
 
-Never write to:
+id, market, company_name, website, linkedin_url, contact_name, contact_role, contact_linkedin, email, city, country, offer_type, packaged_offer, icp_fit, why_fit, source, date_added, added_by, status, founder_name, team_size_estimate, b2b_fit, ecommerce_risk, pricing_signal, email_guess_1, email_guess_2, email_guess_3, verification_status, selected_email, prospeo_needed, source_tool, email_source_url.
 
-- README
-- Business_Model
-- Matching_Intro
-- Outreach_Tracker
-- Leads_Envoyés_au_Presta
-- Revenue_Tracker
-- Budget_Tracker
-- Dashboard
+Do not return summary tables.
+
+Do not return transposed tables.
+
+Do not return custom fields.
+
+Do not include Notes, Description, Website section, Services, or duplicate_status inside the 32-field table.
+
+If additional context is needed, put it below the table as a short skipped / missing items note.
+
+When asked to write results, use the approved Sheet Writer only.
 
 ---
 
@@ -992,14 +1092,19 @@ If the run is in review mode, return:
 - selected market
 - selected provider ICP or niche
 - candidate limit used
-- qualified providers found
-- skipped providers if useful
-- reason each provider qualifies
+- a table using the exact 32 `Prestataires_Audit_CRO` fields
+- skipped providers with reasons, if useful
 - missing enrichment items, if any
+
+The provider table must use the 32 fields in the exact sheet order.
 
 Do not claim that rows were added.
 
 Do not call the Sheet Writer.
+
+If fewer candidates are found than requested, return fewer candidates with reasons.
+
+Do not invent extra candidates to reach the target volume.
 
 ---
 
@@ -1023,6 +1128,30 @@ If there is any inconsistency between attempted rows and successfully written ro
 
 ---
 
+## No placeholder values rule
+
+Never use placeholders as real data.
+
+Forbidden placeholder examples:
+
+- Founder
+- founder name
+- CEO as contact_name
+- CRO Lead as contact_name
+- unknown
+- n/a
+- TBD
+- LinkedIn URLs that are guessed from names
+- emails that are guessed without being placed in email_guess fields
+
+If the exact value is not known, leave the field blank.
+
+Roles such as CEO, Founder, CRO Lead, or Managing Partner may only be used in `contact_role`, never as `contact_name`.
+
+A person name must be a real visible name, not a job title.
+
+---
+
 ## Safety rules
 
 - Do not invent companies.
@@ -1037,3 +1166,9 @@ If there is any inconsistency between attempted rows and successfully written ro
 - Do not write to the Sheet directly.
 - Do not overwrite existing rows.
 - Keep all justifications short and concrete.
+- - Do not output summary tables when the 32-field schema is required.
+- Do not return 32 values in the wrong order.
+- Do not include custom fields inside the provider schema.
+- Do not use masked emails as valid emails.
+- Do not include already treated or duplicate candidates as valid candidates.
+- Do not invent extra candidates to reach a requested volume.
