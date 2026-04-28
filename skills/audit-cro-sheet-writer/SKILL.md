@@ -17,7 +17,7 @@ The Sheet Writer does not discover, qualify, enrich, or verify leads. It only wr
 
 ## Mandatory rules
 
-- Use exec curl POST only to call the approved Railway endpoints when shell exec is available.
+- Use `exec curl POST` only to call the approved Railway endpoints when shell exec is available.
 - Never write directly to Google Sheets.
 - Never use local file write.
 - Append only.
@@ -31,7 +31,7 @@ The Sheet Writer does not discover, qualify, enrich, or verify leads. It only wr
 - Never write duplicate companies, websites, LinkedIn URLs, or emails if duplicate detection is available.
 - Leave unknown optional values blank or omit them from the preferred `row` object.
 - Use plain strings only.
-- Use ISO dates only: YYYY-MM-DD.
+- Use ISO dates only: `YYYY-MM-DD`.
 - One company equals one POST request.
 
 ---
@@ -64,15 +64,14 @@ Preferred payload:
     "source_tool": "official_website"
   }
 }
-```
 
 The Railway server maps named fields into the correct 32-column A:AF order.
 
-Unknown schema fields may be omitted from `row`; the server fills missing fields as empty strings.
+Unknown schema fields may be omitted from row; the server fills missing fields as empty strings.
 
 Do not manually build 32-value arrays unless explicitly required.
 
-Legacy payload `{ "values": [32 ordered values] }` is still accepted, but it should not be used by the agent by default.
+Legacy payload { "values": [32 ordered values] } is still accepted, but it should not be used by the agent by default.
 
 Never send multiple row objects in one request.
 
@@ -80,8 +79,7 @@ Never send nested arrays.
 
 Never send batch payloads.
 
-
-## Exec curl capability rule
+Exec curl capability rule
 
 If shell execution is available, HTTP POST through curl is allowed and required.
 
@@ -93,8 +91,7 @@ If exec curl is truly unavailable in the current environment, return the exact c
 
 The returned curl commands must use the preferred { "row": { field: value } } format unless the user explicitly asks for legacy values.
 
-
-## Approved write tabs
+Approved write tabs
 
 OpenClaw may write only into:
 
@@ -111,9 +108,8 @@ Leads_Envoyés_au_Presta
 Revenue_Tracker
 Budget_Tracker
 Dashboard
-
-## Approved endpoints
-## Providers endpoint
+Approved endpoints
+Providers endpoint
 
 POST:
 
@@ -123,7 +119,7 @@ Use only for:
 
 Prestataires_Audit_CRO
 
-## Clients endpoint
+Clients endpoint
 
 POST:
 
@@ -133,7 +129,7 @@ Use only for:
 
 Clients_Finaux_Audit_CRO
 
-## Write ranges
+Write ranges
 
 The OpenClaw writable zone is A:AF for both tabs.
 
@@ -152,8 +148,7 @@ Google Sheet columns
 server.js field mapping
 Sheet Writer instructions
 single-row test
-
-## Provider row fields
+Provider row fields
 
 For Prestataires_Audit_CRO, use only these field names in the preferred row object:
 
@@ -209,8 +204,7 @@ team_size_estimate
 b2b_fit
 ecommerce_risk
 pricing_signal
-
-## Final-client row fields
+Final-client row fields
 
 For Clients_Finaux_Audit_CRO, use only these field names in the preferred row object:
 
@@ -270,7 +264,7 @@ Use employee_range.
 
 Do not add status to the final-client schema unless the Google Sheet and server mapping have a matching OpenClaw column for it.
 
-## Required before writing provider leads
+Required before writing provider leads
 
 For each provider lead, the following fields must be known or intentionally prepared:
 
@@ -554,7 +548,6 @@ no nested arrays
 no batch of multiple rows
 
 Correct:
-
 {
   "row": {
     "id": "...",
@@ -563,14 +556,12 @@ Correct:
 }
 
 Incorrect:
-
 {
   "rows": [
     { "company_name": "A" },
     { "company_name": "B" }
   ]
 }
-
 For multiple rows, send one POST request per row.
 
 Legacy values payload rule
