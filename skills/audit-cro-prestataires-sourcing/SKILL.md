@@ -1,6 +1,7 @@
 ---
 name: audit-cro-prestataires-sourcing
 description: Mandatory sourcing skill for finding and qualifying Audit CRO providers, CRO agencies, UX audit firms, landing page optimization providers, and conversion optimization consultants for the Prestataires_Audit_CRO tab. Enforces bounded Tavily discovery, website validation, MX and email pattern detection, Hunter Free lookup, Prospeo fallback flagging, and correct handoff to the Audit CRO Sheet Writer.
+
 ---
 
 # Audit CRO Prestataires Sourcing
@@ -522,6 +523,53 @@ This skill must not write directly to the endpoint.
 This skill must not pass unordered objects as final rows.
 
 ---
+
+## Prestataires_Audit_CRO handoff field order
+
+When preparing provider rows for Sheet Writer handoff, use the canonical field order defined in `audit-cro-sheet-writer`.
+
+For `Prestataires_Audit_CRO`, the expected ordered row is:
+
+1. `id`
+2. `market`
+3. `company_name`
+4. `website`
+5. `linkedin_url`
+6. `contact_name`
+7. `contact_role`
+8. `contact_linkedin`
+9. `email`
+10. `city`
+11. `country`
+12. `offer_type`
+13. `packaged_offer`
+14. `icp_fit`
+15. `why_fit`
+16. `source`
+17. `date_added`
+18. `added_by`
+19. `status`
+20. `founder_name`
+21. `team_size_estimate`
+22. `b2b_fit`
+23. `ecommerce_risk`
+24. `pricing_signal`
+25. `email_guess_1`
+26. `email_guess_2`
+27. `email_guess_3`
+28. `verification_status`
+29. `selected_email`
+30. `prospeo_needed`
+31. `source_tool`
+32. `email_source_url`
+
+The final handoff must include `ordered_row_values` as a JSON array with exactly 32 values.
+
+Do not infer missing columns.
+
+Do not add provider-specific fields not present in this schema.
+
+Do not send unordered objects as final rows.
 
 ## Run summary required
 
