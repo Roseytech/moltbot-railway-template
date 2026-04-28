@@ -34,7 +34,108 @@ The Sheet Writer does not discover, qualify, enrich, or verify leads. It only wr
 - Use ISO dates only: `YYYY-MM-DD`.
 - One company equals one POST request.
 
+## Canonical field order is mandatory
+
+The canonical field order must be explicitly defined in this skill.
+
+The agent must never infer, guess, reconstruct, approximate, or create field names based on CRM conventions, prior context, common structures, or memory.
+
+If the canonical field order is not explicitly available in this skill, the writer must stop and return:
+
+`MAPPING_ERROR: canonical Prestataires_Audit_CRO field order not found. Do not infer field order.`
+
+Any answer containing phrases such as:
+
+- inferred
+- assuming
+- based on common CRM structure
+- likely field order
+- estimated schema
+- guessed order
+- provider_role inferred
+- provider_specialty inferred
+
+must be treated as a mapping failure.
+
+A row is safe for handoff only if:
+
+- the field order comes from the explicit canonical list below
+- the row is a JSON array
+- the array length matches the canonical field count
+- every value position corresponds exactly to the canonical field at the same index
+- unknown values are represented as `""`
+
+## Prestataires_Audit_CRO canonical field order
+
+The canonical field order for `Prestataires_Audit_CRO` is:
+## Prestataires_Audit_CRO canonical field order
+
+The canonical field order for `Prestataires_Audit_CRO` is explicitly defined below.
+
+The agent must use this exact order and no other order.
+
+The agent must never infer, guess, reconstruct, approximate, or create field names based on CRM conventions, prior context, memory, or common schemas.
+
+If this list is unavailable, the writer must stop and return:
+
+`MAPPING_ERROR: canonical Prestataires_Audit_CRO field order not found. Do not infer field order.`
+
+Canonical field order:
+
+1. `id`
+2. `market`
+3. `company_name`
+4. `website`
+5. `linkedin_url`
+6. `contact_name`
+7. `contact_role`
+8. `contact_linkedin`
+9. `email`
+10. `city`
+11. `country`
+12. `offer_type`
+13. `packaged_offer`
+14. `icp_fit`
+15. `why_fit`
+16. `source`
+17. `date_added`
+18. `added_by`
+19. `status`
+20. `founder_name`
+21. `team_size_estimate`
+22. `b2b_fit`
+23. `ecommerce_risk`
+24. `pricing_signal`
+25. `email_guess_1`
+26. `email_guess_2`
+27. `email_guess_3`
+28. `verification_status`
+29. `selected_email`
+30. `prospeo_needed`
+31. `source_tool`
+32. `email_source_url`
+
+Expected field count: 32.
+
+Target range: `A:AF`.
+
+The final row for append must be an ordered JSON array with exactly 32 values.
+
+Do not append a JSON object directly.
+
+Do not rely on object key order.
+
+Unknown values must be represented as an empty string `""`.
+
+If the ordered array has fewer or more than 32 values, stop and return:
+
+`MAPPING_ERROR: Prestataires_Audit_CRO row length mismatch. Expected 32 values.`
+
+Expected field count: 32.
+Target range: A:AF.
+
 ---
+
 ## Prestataires_Audit_CRO field order enforcement
 
 The `Prestataires_Audit_CRO` tab must be written using an ordered row array only.
