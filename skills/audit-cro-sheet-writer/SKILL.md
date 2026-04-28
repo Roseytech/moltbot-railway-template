@@ -519,6 +519,45 @@ A write request is allowed only when at least one complete 32-value array is rea
 
 ---
 
+## One-row and 32-position rule
+
+The Railway endpoints accept one row per POST request only.
+
+Each POST request must contain:
+
+- one JSON object
+- one flat `values` array
+- exactly 32 values
+- no nested array
+- no batch of multiple rows
+
+Correct:
+
+{ "values": [32 ordered values] }
+
+Incorrect:
+
+{ "values": [[row1], [row2]] }
+
+For multiple rows, send one POST request per row.
+
+Unknown optional fields must be included as empty strings.
+
+A blank field still counts as one of the 32 required positions.
+
+Do not omit empty fields from the `values` array.
+
+If a field is unknown, send `""`.
+
+Before every POST request, verify:
+
+- `Array.isArray(values) === true`
+- `values.length === 32`
+- every field position from 1 to 32 is present
+- no blank position was removed
+  
+---
+
 ## Curl execution rule
 
 When writing, call the correct Railway endpoint using exec curl POST.
