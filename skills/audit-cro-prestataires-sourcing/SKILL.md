@@ -449,51 +449,41 @@ Mark the provider as duplicate risk and ask the Sheet Writer or run controller t
 
 ## Required output before Sheet Writer handoff
 
-For each retained provider, prepare a structured object with the fields required by the `Prestataires_Audit_CRO` tab.
+For each retained provider, prepare the provider data according to the exact field order required by the `Prestataires_Audit_CRO` tab.
 
-Use the current column schema defined in the Audit CRO Google Sheet and the `audit-cro-sheet-writer` skill.
+The field order must never be inferred from a JSON object.
 
-Do not reorder columns manually unless the Sheet Writer explicitly requires it.
+The field order must be the exact ordered schema defined in the `audit-cro-sheet-writer` skill.
 
-Minimum provider data should include, when available:
+Before handoff, produce two structures:
 
-- provider_name
-- country
-- city_state
-- provider_type
-- website
-- domain
-- linkedin_company_url
-- decision_maker_first_name
-- decision_maker_last_name
-- decision_maker_full_name
-- decision_maker_role
-- decision_maker_linkedin_url
-- selected_email
-- email_type
-- email_source
-- email_source_url
-- email_confidence
-- mx_status
-- email_pattern_detected
-- hunter_used
-- hunter_result
-- prospeo_needed
-- enrichment_status
-- services_offered
-- target_clients
-- cro_specialization
-- proof_points
-- why_fit
-- priority_score
-- source_query
-- source_url
-- qualification_notes
-- duplicate_check_status
+1. `provider_object`
+   - Used only for readability and validation.
+   - Keys may be unordered.
+   - Must not be used directly for writing.
 
-If a value is unknown, leave it blank.
+2. `ordered_row_values`
+   - Required for Sheet Writer handoff.
+   - Must be a JSON array.
+   - Must follow the exact column order of `Prestataires_Audit_CRO`.
+   - Must contain exactly the same number of values as the target Sheet columns.
+   - Unknown values must be represented as an empty string `""`.
+   - No column may be skipped.
+   - No extra value may be added.
 
-Do not invent missing values.
+The Sheet Writer must reject the row if:
+
+- `ordered_row_values` is missing
+- `ordered_row_values` is not an array
+- the number of values does not match the expected column count
+- the tab is not `Prestataires_Audit_CRO`
+- the row contains invented emails, names, LinkedIn URLs, or websites
+
+Do not rely on object key order.
+
+Do not let the endpoint guess the order.
+
+Do not send a provider row to the Sheet Writer unless the ordered array has been validated.
 
 ---
 
@@ -503,28 +493,33 @@ After preparing qualified provider rows, hand them to:
 
 `audit-cro-sheet-writer`
 
+The handoff payload must include:
+
+- `target_tab`: `Prestataires_Audit_CRO`
+- `provider_object`: readable validation object
+- `ordered_row_values`: final ordered array for append
+- `field_order_source`: `audit-cro-sheet-writer`
+- `dry_run`: true or false
+
+The `ordered_row_values` array is the only structure that may be used for appending into Google Sheets.
+
+The `provider_object` is only a validation aid.
+
 The Sheet Writer is responsible for:
 
-- selecting the correct endpoint
-- appending to `Prestataires_Audit_CRO`
 - enforcing the exact column order
+- checking the expected number of columns
+- appending only to `Prestataires_Audit_CRO`
 - preventing forbidden tab writes
+- rejecting malformed rows
 - handling duplicate responses
 - treating HTTP errors as authoritative
 
 This skill must not call Google Sheets directly.
 
-This skill must not write to:
+This skill must not write directly to the endpoint.
 
-- `Clients_Finaux_Audit_CRO`
-- `README`
-- `Business_Model`
-- `Matching_Intro`
-- `Outreach_Tracker`
-- `Leads_Envoyés_au_Presta`
-- `Revenue_Tracker`
-- `Budget_Tracker`
-- `Dashboard`
+This skill must not pass unordered objects as final rows.
 
 ---
 
