@@ -503,8 +503,7 @@ OpenClaw must never write into:
 
 Never call the Railway endpoint with empty rows.
 
-Unknown optional fields may be sent as empty strings if the row is otherwise qualified and complete.
-
+Unknown optional fields must be sent as empty strings if the row is otherwise qualified and complete.
 If no qualified lead is prepared for writing:
 
 - do not call exec curl
@@ -513,6 +512,25 @@ If no qualified lead is prepared for writing:
 - explain that no qualified candidates were found
 
 A write request is allowed only when at least one complete 32-value array is ready.
+
+## Empty string position rule
+
+Unknown optional fields must be included as empty strings.
+
+Do not omit empty fields from the `values` array.
+
+A blank value still counts as one of the 32 required positions.
+
+Before every POST request, verify:
+
+- `values` is a flat array
+- `values.length === 32`
+- no field position is omitted
+- one row is sent per request
+
+If a field is unknown, send `""` for that field.
+
+Never remove a blank value to shorten the array.
 
 ---
 
