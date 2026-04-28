@@ -35,6 +35,29 @@ The Sheet Writer does not discover, qualify, enrich, or verify leads. It only wr
 - One company equals one POST request.
 
 ---
+## Prestataires_Audit_CRO field order enforcement
+
+The `Prestataires_Audit_CRO` tab must be written using an ordered row array only.
+
+Never append a raw JSON object directly to Google Sheets.
+
+Never rely on object key order.
+
+The writer must use one canonical field order for `Prestataires_Audit_CRO`.
+
+Before appending, the writer must verify:
+
+- target tab is exactly `Prestataires_Audit_CRO`
+- row is an array
+- row length matches the expected column count
+- no extra values are present
+- missing values are represented as empty strings
+- the row is append-only
+- no forbidden tab is targeted
+
+If the row length does not match the expected number of columns, stop and return a mapping error.
+
+Do not attempt to auto-fix a shifted row.
 
 ## Preferred write payload format
 
