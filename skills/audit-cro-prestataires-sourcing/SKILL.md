@@ -375,6 +375,29 @@ Never select:
 - malformed emails
 - personal Gmail/Yahoo/Outlook emails unless clearly used professionally by the consultant
 
+## Provider email field consistency
+
+If a public email is found and selected for outreach, fill both:
+
+- `email`
+- `selected_email`
+
+Do not leave `email` blank when `selected_email` comes from a verified public source.
+
+If the email is only guessed or pattern-based, do not put it in `email` unless it is verified or publicly supported.
+
+Use:
+
+- `email_guess_1`
+- `email_guess_2`
+- `email_guess_3`
+
+for unverified pattern guesses.
+
+Use `selected_email` only when the email is the best available outreach email.
+
+If no reliable email is available, leave `email` and `selected_email` blank, set `verification_status = no_email_found`, and set `prospeo_needed = yes`.
+
 ---
 
 ## LinkedIn rules
