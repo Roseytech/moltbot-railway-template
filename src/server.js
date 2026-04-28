@@ -742,26 +742,138 @@ async function isDuplicateAuditCroRow(sheets, spreadsheetId, range, values) {
     return false;
   });
 }
+
+const PRESTATAIRE_FIELDS = [
+  "id",
+  "market",
+  "company_name",
+  "website",
+  "linkedin_url",
+  "contact_name",
+  "contact_role",
+  "contact_linkedin",
+  "email",
+  "city",
+  "country",
+  "offer_type",
+  "packaged_offer",
+  "icp_fit",
+  "why_fit",
+  "source",
+  "date_added",
+  "added_by",
+  "status",
+  "founder_name",
+  "team_size_estimate",
+  "b2b_fit",
+  "ecommerce_risk",
+  "pricing_signal",
+  "email_guess_1",
+  "email_guess_2",
+  "email_guess_3",
+  "verification_status",
+  "selected_email",
+  "prospeo_needed",
+  "source_tool",
+  "email_source_url"
+];
+
+const CLIENT_FIELDS = [
+  "id",
+  "market",
+  "company_name",
+  "website",
+  "linkedin_url",
+  "contact_name",
+  "contact_role",
+  "contact_linkedin",
+  "email",
+  "city",
+  "country",
+  "industry",
+  "employee_range",
+  "cro_friction_summary",
+  "icp_fit",
+  "why_fit",
+  "source",
+  "date_added",
+  "added_by",
+  "cro_signal_1",
+  "cro_signal_2",
+  "cro_signal_3",
+  "cro_signal_4",
+  "cro_signal_5",
+  "email_guess_1",
+  "email_guess_2",
+  "email_guess_3",
+  "verification_status",
+  "selected_email",
+  "prospeo_needed",
+  "source_tool",
+  "email_source_url"
+];
+
+function normalizeSheetValues(body, fields, tabName) {
+  if (Array.isArray(body?.values)) {
+    if (body.values.length !== fields.length) {
+      return {
+        ok: false,
+        status: 400,
+        response: {
+          success: false,
+          error: "invalid_values_length",
+          expected: fields.length,
+          received: body.values.length,
+          tab: tabName
+        }
+      };
+    }
+
+    return {
+      ok: true,
+      values: body.values.map((value) =>
+        value === undefined || value === null ? "" : String(value)
+      )
+    };
+  }
+
+  if (body?.row && typeof body.row === "object" && !Array.isArray(body.row)) {
+    const values = fields.map((field) => {
+      const value = body.row[field];
+      return value === undefined || value === null ? "" : String(value);
+    });
+
+    return {
+      ok: true,
+      values
+    };
+  }
+
+  return {
+    ok: false,
+    status: 400,
+    response: {
+      success: false,
+      error: "invalid_payload",
+      message: "Expected either { values: [32 ordered values] } or { row: { field: value } }",
+      tab: tabName
+    }
+  };
+}
+
 app.post("/setup/api/sheets/audit-cro/prestataires", express.json(), async (req, res) => {
   try {
-    const { values } = req.body;
+   const normalized = normalizeSheetValues(
+  req.body,
+  PRESTATAIRE_FIELDS,
+  "Prestataires_Audit_CRO"
+);
 
-    if (!Array.isArray(values)) {
-      return res.status(400).json({
-        success: false,
-        error: "values must be an array"
-      });
-    }
+if (!normalized.ok) {
+  return res.status(normalized.status).json(normalized.response);
+}
 
-    if (values.length !== 32) {
-      return res.status(400).json({
-        success: false,
-        error: "invalid_values_length",
-        expected: 32,
-        received: values.length,
-        tab: "Prestataires_Audit_CRO"
-      });
-    }
+const values = normalized.values;
 
     const sheets = await getSheetsClient();
 
@@ -815,24 +927,17 @@ app.post("/setup/api/sheets/audit-cro/prestataires", express.json(), async (req,
 
 app.post("/setup/api/sheets/audit-cro/clients", express.json(), async (req, res) => {
   try {
-    const { values } = req.body;
+   const normalized = normalizeSheetValues(
+  req.body,
+  CLIENT_FIELDS,
+  "Clients_Finaux_Audit_CRO"
+);
 
-    if (!Array.isArray(values)) {
-      return res.status(400).json({
-        success: false,
-        error: "values must be an array"
-      });
-    }
+if (!normalized.ok) {
+  return res.status(normalized.status).json(normalized.response);
+}
 
-    if (values.length !== 32) {
-      return res.status(400).json({
-        success: false,
-        error: "invalid_values_length",
-        expected: 32,
-        received: values.length,
-        tab: "Clients_Finaux_Audit_CRO"
-      });
-    }
+const values = normalized.values;
 
     const sheets = await getSheetsClient();
 
