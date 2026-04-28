@@ -33,6 +33,7 @@ The Sheet Writer does not discover, qualify, enrich, or verify leads. It only wr
 - `email`
 -`selected_email` Do not leave `email` blank when `selected_email` comes from a verified public source.
 - Leave unknown optional values blank or omit them from the preferred `row` object.
+- `why_fit` must explain why the provider may be relevant for the Audit CRO pilot offer, not merely why the company is a CRO provider.
 - Use plain strings only.
 - Use ISO dates only: `YYYY-MM-DD`.
 - One company equals one POST request.
