@@ -37,6 +37,18 @@ The Sheet Writer does not discover, qualify, enrich, or verify leads. It only wr
 
 ---
 
+## Exec curl capability rule
+
+If shell execution is available, HTTP POST through `curl` is allowed and required.
+
+The Sheet Writer must use `exec curl POST` to call the approved Railway endpoints.
+
+Do not say that HTTP POST is impossible if shell execution is available.
+
+If `exec curl` is truly unavailable in the current environment, return the exact curl commands for the user to execute manually.
+
+---
+
 ## Current validated write contract
 
 The Audit CRO Google Sheet write contract is validated.
