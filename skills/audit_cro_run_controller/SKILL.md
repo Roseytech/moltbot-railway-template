@@ -190,25 +190,44 @@ Do not return another candidate review list before writing if the user already a
 
 ## No mid-run confirmation rule
 
-During a bounded run, do not ask for confirmation to continue a validation step that is already inside the approved limits.
+If the user asks for a correction, refinement, replacement, cleanup, re-check, or deeper validation inside an already active bounded review run, perform the correction immediately.
 
-If the user approved or launched a run with candidate and row limits, continue until:
+Do not ask for confirmation again if the correction keeps the same:
+- target tab
+- market
+- sourcing flow
+- review mode
+- candidate limit
+- row limit
+- enrichment limits
 
-- the row limit is reached
-- the candidate limit is reached
-- the Tavily search limit is reached
-- the Hunter lookup limit is reached
-- the Prospeo lookup limit is reached
-- no valid candidate remains
-- or an error prevents continuation
+Examples of corrections that must be executed immediately:
+- reject a weak candidate
+- replace an invalid candidate
+- verify official website evidence
+- correct website/source fields
+- complete missing 32-field review table
+- remove software vendors
+- continue with the same candidates
+- search decision makers for already selected candidates
+- return current progress if the full target cannot be completed
 
-Do not ask:
+Only ask a clarification question if the correction would change:
+- provider vs final-client flow
+- market
+- ICP
+- write mode
+- row limit
+- paid enrichment limit
+- target tab
 
-- Shall I continue?
-- Should I proceed?
-- Do you want me to check further?
+Never end a correction response with:
+- Do you want me to continue?
+- Shall I proceed?
+- Veux-tu que je le fasse ?
+- Veux-tu que je continue ?
 
-Only ask a question if continuing would exceed the approved limits or change the target ICP, market, tab, enrichment rules, or writing rules.
+If the task cannot be fully completed, return the current validated state immediately.
 
 ---
 
