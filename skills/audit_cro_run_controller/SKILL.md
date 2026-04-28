@@ -459,6 +459,27 @@ Do not retry elsewhere if the endpoint returns:
 
 Never claim a row was added unless the Railway endpoint confirms success.
 
+## Write correction rule
+
+If a write fails because of `invalid_values_length`, correct the payload immediately inside the same write run.
+
+Do not ask the user for confirmation again.
+
+The error means the `values` array does not contain exactly 32 positions.
+
+Most likely cause:
+
+- a blank optional field was omitted instead of being sent as `""`
+
+Correction required:
+
+- rebuild the row using the exact schema order
+- include every blank field as `""`
+- verify `values.length === 32`
+- retry one POST request per row
+
+If the error happens again, stop retrying and return the failed payload with values numbered from 1 to 32.
+
 ---
 
 ## Sheet writing contract
