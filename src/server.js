@@ -887,30 +887,6 @@ if (validationErrors.length > 0) {
   });
 }
 
-const built = buildRowFromPayload(
-  req.body,
-  PRESTATAIRE_FIELDS,
-  "Prestataires_Audit_CRO"
-);
-
-if (!built.ok) {
-  return res.status(built.status).json(built.response);
-}
-
-const row = normalizeProviderRow(built.row);
-
-const validationErrors = validateProviderRow(row);
-
-if (validationErrors.length > 0) {
-  return res.status(422).json({
-    success: false,
-    error: "PROVIDER_ROW_VALIDATION_ERROR",
-    tab: "Prestataires_Audit_CRO",
-    company: row.company_name || "",
-    details: validationErrors
-  });
-}
-
 const values = rowToSheetValues(row, PRESTATAIRE_FIELDS);
 
 const sheets = await getSheetsClient();
