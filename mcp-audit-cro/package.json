@@ -1,0 +1,19 @@
+{
+  "name": "mcp-audit-cro",
+  "version": "1.0.0",
+  "description": "Minimal MCP server for Audit CRO Google Sheet operations",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "mcp-audit-cro": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "check": "node --check index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0"
+  }
+}

@@ -861,7 +861,18 @@ function normalizeSheetValues(body, fields, tabName) {
   };
 }
 
-app.post("/setup/api/sheets/audit-cro/prestataires", express.json(), async (req, res) => {
+function requireAuditCroSecret(req, res, next) {
+  const secret = process.env.AUDIT_CRO_INTERNAL_SECRET;
+  if (!secret) {
+    return res.status(500).json({ success: false, error: "AUDIT_CRO_INTERNAL_SECRET not configured on server" });
+  }
+  if (req.headers["x-audit-cro-secret"] !== secret) {
+    return res.status(401).json({ success: false, error: "unauthorized" });
+  }
+  return next();
+}
+
+app.post("/setup/api/sheets/audit-cro/prestataires", requireAuditCroSecret, express.json(), async (req, res) => {
   try {
   const built = buildRowFromPayload(
   req.body,
@@ -939,7 +950,7 @@ return res.json({
   }
 });
 
-app.post("/setup/api/sheets/audit-cro/clients", express.json(), async (req, res) => {
+app.post("/setup/api/sheets/audit-cro/clients", requireAuditCroSecret, express.json(), async (req, res) => {
   try {
    const normalized = normalizeSheetValues(
   req.body,

@@ -14,6 +14,10 @@ npm-debug.log*
 # OS
 .DS_Store
 
+# MCP server
+mcp-audit-cro/node_modules/
+mcp-audit-cro/.env
+
 .claude/
 .serena/
 .tmpdata/
