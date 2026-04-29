@@ -887,48 +887,71 @@ if (validationErrors.length > 0) {
   });
 }
 
+const built = buildRowFromPayload(
+  req.body,
+  PRESTATAIRE_FIELDS,
+  "Prestataires_Audit_CRO"
+);
+
+if (!built.ok) {
+  return res.status(built.status).json(built.response);
+}
+
+const row = normalizeProviderRow(built.row);
+
+const validationErrors = validateProviderRow(row);
+
+if (validationErrors.length > 0) {
+  return res.status(422).json({
+    success: false,
+    error: "PROVIDER_ROW_VALIDATION_ERROR",
+    tab: "Prestataires_Audit_CRO",
+    company: row.company_name || "",
+    details: validationErrors
+  });
+}
+
 const values = rowToSheetValues(row, PRESTATAIRE_FIELDS);
-const values = normalized.values;
 
-    const sheets = await getSheetsClient();
+const sheets = await getSheetsClient();
 
-    console.log("[audit-cro/prestataires] incoming values:", values);
+console.log("[audit-cro/prestataires] incoming values:", values);
 
-    const duplicate = await isDuplicateAuditCroRow(
-      sheets,
-      process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
-      "Prestataires_Audit_CRO!A:AF",
-      values
-    );
+const duplicate = await isDuplicateAuditCroRow(
+  sheets,
+  process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
+  "Prestataires_Audit_CRO!A:AF",
+  values
+);
 
-    console.log("[audit-cro/prestataires] duplicate result:", duplicate);
+console.log("[audit-cro/prestataires] duplicate result:", duplicate);
 
-    if (duplicate) {
-      return res.status(409).json({
-        success: false,
-        duplicate: true,
-        tab: "Prestataires_Audit_CRO",
-        message: "Duplicate detected. Row was not added."
-      });
-    }
+if (duplicate) {
+  return res.status(409).json({
+    success: false,
+    duplicate: true,
+    tab: "Prestataires_Audit_CRO",
+    message: "Duplicate detected. Row was not added."
+  });
+}
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
-      range: "Prestataires_Audit_CRO!A:AF",
-      valueInputOption: "RAW",
-      insertDataOption: "INSERT_ROWS",
-      requestBody: {
-        values: [values]
-      }
-    });
+await sheets.spreadsheets.values.append({
+  spreadsheetId: process.env.GOOGLE_SHEET_AUDIT_CRO_ID,
+  range: "Prestataires_Audit_CRO!A:AF",
+  valueInputOption: "RAW",
+  insertDataOption: "INSERT_ROWS",
+  requestBody: {
+    values: [values]
+  }
+});
 
-    return res.json({
-      success: true,
-      rowsAdded: 1,
-      tab: "Prestataires_Audit_CRO",
-      company: values[2] || ""
-    });
-
+return res.json({
+  success: true,
+  rowsAdded: 1,
+  tab: "Prestataires_Audit_CRO",
+  company: values[2] || ""
+});
+    
   } catch (error) {
     console.error("[audit-cro/prestataires] append error:", error);
 
