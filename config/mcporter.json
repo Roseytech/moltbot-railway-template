@@ -1,0 +1,25 @@
+{
+  "$schema": "https://raw.githubusercontent.com/steipete/mcporter/main/mcporter.schema.json",
+  "mcpServers": {
+    "audit-cro": {
+      "description": "Audit CRO MCP tools for Google Sheet writes",
+      "command": "node",
+      "args": [
+        "/app/mcp-audit-cro/index.js"
+      ],
+      "env": {
+        "RAILWAY_APP_URL": "${RAILWAY_APP_URL:-https://moltbot-railway-template-production-2e3c.up.railway.app}",
+        "AUDIT_CRO_INTERNAL_SECRET": "${AUDIT_CRO_INTERNAL_SECRET}"
+      },
+      "allowedTools": [
+        "audit_cro_health_check",
+        "audit_cro_validate_client_row",
+        "audit_cro_validate_provider_row",
+        "audit_cro_append_client",
+        "audit_cro_append_provider",
+        "audit_cro_run_report"
+      ]
+    }
+  },
+  "imports": []
+}

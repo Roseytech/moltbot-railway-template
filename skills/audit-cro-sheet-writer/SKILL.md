@@ -842,20 +842,61 @@ Prefer `row`.
 
 ## Write execution rule
 
-### Preferred path: Claude Code + MCP server
+### Primary path: MCPorter → mcp-audit-cro → Railway endpoint
 
-The validated and preferred write path is Claude Code + MCP (`mcp-audit-cro` server):
+The validated write path for the OpenClaw Audit CRO agent is:
 
-- `audit_cro_append_provider` → writes to `Prestataires_Audit_CRO`
-- `audit_cro_append_client` → writes to `Clients_Finaux_Audit_CRO`
+```
+OpenClaw Audit CRO agent
+  → mcporter call audit-cro.<tool>
+  → mcp-audit-cro (stdio MCP server at /app/mcp-audit-cro/index.js)
+  → Railway endpoint (protected by X-AUDIT-CRO-SECRET)
+  → Google Sheet
+```
 
-Both MCP tools accept the preferred `{ "row": { "field": "value" } }` format and support `dry_run: true` for validation without writing.
+MCPorter is pre-installed at `/usr/local/bin/mcporter`.  
+Config is at `/app/config/mcporter.json` (env: `MCPORTER_CONFIG`).
+
+**Step 1 — Inspect available schemas before calling:**
+
+```bash
+mcporter list audit-cro --schema
+```
+
+**Step 2 — Call the provider append tool:**
+
+```bash
+mcporter call audit-cro.audit_cro_append_provider \
+  --arg '{"row": {"company_name": "...", "website": "...", ...}}'
+```
+
+**Step 3 — Call the client append tool:**
+
+```bash
+mcporter call audit-cro.audit_cro_append_client \
+  --arg '{"row": {"company_name": "...", "website": "...", ...}}'
+```
+
+**Step 4 — Call health check:**
+
+```bash
+mcporter call audit-cro.audit_cro_health_check --output json
+```
+
+The `row` argument must follow the exact schema returned by `mcporter list audit-cro --schema`.
+
+`dry_run: true` may be passed in the argument to validate without writing:
+
+```bash
+mcporter call audit-cro.audit_cro_append_provider \
+  --arg '{"row": {...}, "dry_run": true}'
+```
 
 ### Fallback: exec curl POST
 
-If Claude Code + MCP is unavailable, call the Railway endpoint directly via exec curl POST.
+If MCPorter is unavailable (binary missing, config error, or MCP process fails to start), call the Railway endpoint directly via exec curl POST.
 
-All requests to the Railway endpoints require the `X-AUDIT-CRO-SECRET` header:
+All requests require the `X-AUDIT-CRO-SECRET` header:
 
 ```bash
 curl -s -X POST \
@@ -865,7 +906,7 @@ curl -s -X POST \
   -d '{ "row": { "company_name": "...", ... } }'
 ```
 
-Requests without `X-AUDIT-CRO-SECRET` will return HTTP 401 and must not be retried without the correct header.
+Requests without `X-AUDIT-CRO-SECRET` return HTTP 401 and must not be retried without the correct header.
 
 Do not send provider rows to the clients endpoint.
 
@@ -878,8 +919,6 @@ If a write payload fails:
 3. do not bypass Railway
 4. if it fails again, return the failed payload and API error
 
-If both MCP and exec curl are unavailable, return the exact curl commands for the user to execute manually, including the `X-AUDIT-CRO-SECRET` header placeholder.
-
 ---
 
 ## Output after writing
@@ -889,15 +928,21 @@ After writing, return only:
 - exact rows added count
 - companies added
 - skipped or failed companies with reason
-- exact API response
+- exact MCPorter/API response
 
 The count must match the number of companies listed.
 
-Never claim that rows were added unless the Railway endpoint confirms success.
+Never claim that rows were added unless MCPorter or the Railway endpoint confirms success (SUCCESS or DUPLICATE response).
 
 If the endpoint returns partial success, report only the successfully appended companies as added.
 
 If attempted rows and successfully appended rows differ, state the difference clearly.
+
+If no MCPorter or curl call was made in this session, output exactly:
+
+```
+NO_WRITE_PERFORMED
+```
 
 ---
 
@@ -905,13 +950,17 @@ If attempted rows and successfully appended rows differ, state the difference cl
 
 As of 2026-04-30:
 
-- MCP server (`mcp-audit-cro`) validated with Claude Code
+- `mcp-audit-cro` MCP server is in the Railway runtime image at `/app/mcp-audit-cro/index.js`
+- MCPorter is installed globally and configured via `/app/config/mcporter.json`
+- `AUDIT_CRO_INTERNAL_SECRET` is a Railway Variable — it is passed to `mcp-audit-cro` at runtime via MCPorter env interpolation
 - Both endpoints protected by `X-AUDIT-CRO-SECRET` header — requests without it return HTTP 401
-- Provider append (`Prestataires_Audit_CRO`): tested and working
-- Client append (`Clients_Finaux_Audit_CRO`): tested and working
-- OpenClaw as direct MCP client: **not yet confirmed**
+- Provider append (`Prestataires_Audit_CRO`): endpoint tested and working
+- Client append (`Clients_Finaux_Audit_CRO`): endpoint tested and working
+- Write path: OpenClaw Audit CRO → MCPorter → mcp-audit-cro → Railway endpoint → Google Sheet
 
-Until OpenClaw is confirmed as a direct MCP client, writes must go through Claude Code + MCP or exec curl with the correct header.
+**Scope restriction:**  
+`audit_cro_*` tools are for the **Audit CRO agent only**.  
+Other agents must not call `audit_cro_*` tools.
 
 ---
 

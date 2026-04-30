@@ -88,6 +88,9 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --prod --frozen-lockfile && pnpm store prune
 
+# MCPorter: global install so 'mcporter' is on PATH for agent tool calls
+RUN npm install -g mcporter
+
 # Copy built openclaw
 COPY --from=openclaw-build /openclaw /openclaw
 
@@ -104,9 +107,18 @@ COPY skills ./skills
 COPY mcp-audit-cro/package.json mcp-audit-cro/package-lock.json ./mcp-audit-cro/
 RUN npm ci --prefix /app/mcp-audit-cro --omit=dev
 COPY mcp-audit-cro/index.js ./mcp-audit-cro/
-# Post-deploy verification (run manually after Railway build):
-#   ls -la /app/mcp-audit-cro
-#   node --check /app/mcp-audit-cro/index.js
+
+# MCPorter config — AUDIT_CRO_INTERNAL_SECRET comes from Railway Variable at runtime, never committed here
+COPY config/mcporter.json ./config/mcporter.json
+ENV MCPORTER_CONFIG=/app/config/mcporter.json
+
+# Post-deploy verification (run in Railway shell or debug console — no live writes):
+#   mcporter --version
+#   echo $MCPORTER_CONFIG && test -f /app/config/mcporter.json
+#   test -f /app/mcp-audit-cro/index.js && node --check /app/mcp-audit-cro/index.js
+#   mcporter config list --json
+#   mcporter list audit-cro --schema
+#   mcporter call audit-cro.audit_cro_health_check --output json
 
 ENV PORT=8080
 EXPOSE 8080
