@@ -55,18 +55,20 @@ It only writes already prepared rows that comply with the approved schemas.
 
 ## Mandatory rules
 
-- Use `exec curl POST` only to call the approved Railway endpoints when shell exec is available.
-- Never write directly to Google Sheets.
-- Never use local file write.
 - Append only.
 - Never overwrite or edit existing rows.
+- Never update, delete, or clear spreadsheet rows.
 - Never write to forbidden tabs.
+- Never write directly to Google Sheets.
+- Never use local file write.
 - Never bypass the Railway endpoint.
 - Never call the endpoint with empty rows.
-- Never claim success unless the Railway API returns success.
+- Never claim success unless the Railway API returns a confirmed success response.
+- If no actual write call was performed, output exactly: `NO_WRITE_PERFORMED`
 - If the endpoint returns an error, duplicate response, or HTTP 409, do not retry elsewhere.
 - Never invent companies, websites, LinkedIn URLs, contacts, roles, emails, pricing, team size, or sources.
 - Never write duplicate companies, websites, LinkedIn URLs, or emails if duplicate detection is available.
+- Duplicates returned by the endpoint (HTTP 409) must be reported as duplicates, not failures.
 - Leave unknown optional values blank or omit them from the preferred `row` object.
 - Use plain strings only.
 - Use ISO dates only: `YYYY-MM-DD`.
@@ -673,9 +675,11 @@ Use only:
 
 ### added_by
 
-Use only:
+Allowed values:
 
-- `openclaw`
+- `openclaw` — rows sourced and written by OpenClaw
+- `claude-code` — rows written via Claude Code + MCP server
+- `mcp-audit-cro` — rows written directly via MCP tool
 
 ### provider status
 
@@ -836,13 +840,32 @@ Prefer `row`.
 
 ---
 
-## Curl execution rule
+## Write execution rule
 
-When writing, call the correct Railway endpoint using exec curl POST.
+### Preferred path: Claude Code + MCP server
 
-Use the approved endpoint for the target tab.
+The validated and preferred write path is Claude Code + MCP (`mcp-audit-cro` server):
 
-Use the preferred `row` object payload.
+- `audit_cro_append_provider` → writes to `Prestataires_Audit_CRO`
+- `audit_cro_append_client` → writes to `Clients_Finaux_Audit_CRO`
+
+Both MCP tools accept the preferred `{ "row": { "field": "value" } }` format and support `dry_run: true` for validation without writing.
+
+### Fallback: exec curl POST
+
+If Claude Code + MCP is unavailable, call the Railway endpoint directly via exec curl POST.
+
+All requests to the Railway endpoints require the `X-AUDIT-CRO-SECRET` header:
+
+```bash
+curl -s -X POST \
+  https://moltbot-railway-template-production-2e3c.up.railway.app/setup/api/sheets/audit-cro/prestataires \
+  -H "Content-Type: application/json" \
+  -H "X-AUDIT-CRO-SECRET: $AUDIT_CRO_INTERNAL_SECRET" \
+  -d '{ "row": { "company_name": "...", ... } }'
+```
+
+Requests without `X-AUDIT-CRO-SECRET` will return HTTP 401 and must not be retried without the correct header.
 
 Do not send provider rows to the clients endpoint.
 
@@ -855,9 +878,7 @@ If a write payload fails:
 3. do not bypass Railway
 4. if it fails again, return the failed payload and API error
 
-If exec curl is truly unavailable in the current environment, return the exact curl commands for the user to execute manually.
-
-The returned curl commands must use the preferred `{ "row": { "field": "value" } }` format unless the user explicitly asks for legacy values.
+If both MCP and exec curl are unavailable, return the exact curl commands for the user to execute manually, including the `X-AUDIT-CRO-SECRET` header placeholder.
 
 ---
 
@@ -880,6 +901,35 @@ If attempted rows and successfully appended rows differ, state the difference cl
 
 ---
 
+## MCP status
+
+As of 2026-04-30:
+
+- MCP server (`mcp-audit-cro`) validated with Claude Code
+- Both endpoints protected by `X-AUDIT-CRO-SECRET` header — requests without it return HTTP 401
+- Provider append (`Prestataires_Audit_CRO`): tested and working
+- Client append (`Clients_Finaux_Audit_CRO`): tested and working
+- OpenClaw as direct MCP client: **not yet confirmed**
+
+Until OpenClaw is confirmed as a direct MCP client, writes must go through Claude Code + MCP or exec curl with the correct header.
+
+---
+
+## Test rows
+
+Two test rows may be present in the Google Sheet and can be removed manually:
+
+- `MCP_TEST_DO_NOT_USE` in `Clients_Finaux_Audit_CRO`
+- `MCP_PROVIDER_TEST_DO_NOT_USE` in `Prestataires_Audit_CRO`
+
+---
+
 ## Success condition
 
-A successful write uses the approved Railway endpoint, sends one named `row` object, appends only to the correct approved tab, respects the exact A:AF schema, and reports success only after the Railway API confirms the row was added.
+A successful write uses the approved Railway endpoint or MCP tool, sends one named `row` object, appends only to the correct approved tab, respects the exact A:AF schema, and reports success only after the Railway API confirms the row was added.
+
+If no write call was performed, output exactly:
+
+```
+NO_WRITE_PERFORMED
+```

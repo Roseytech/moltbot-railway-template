@@ -122,14 +122,20 @@ Prioritize providers that are commercially aligned with the Audit CRO pilot.
 | High | Boutique CRO agencies | Likely to need qualified client accounts and sales activation |
 | High | UX audit firms | Often close to CRO but may lack outbound lead generation |
 | High | Landing page optimization providers | Strong fit for qualified final-client lead supply |
-| High | Conversion consultants | Lean structure, often open to revenue-share or pilot models |
-| Medium | Growth agencies with clear CRO offer | Fit only if CRO is a visible service, not a vague growth claim |
+| High | Conversion optimization consultants | Lean structure, often open to revenue-share or pilot models |
+| High | Funnel optimization consultants | Direct fit for qualified account supply |
+| High | Independent CRO consultants (commercially credible) | Lean, often open to pilots |
+| Medium | Growth agencies **only if CRO / conversion / landing page optimization is a clearly visible and named service** | Do not retain if CRO is vague, implied, or buried |
 | Medium | Ecommerce CRO agencies | Fit if they sell audits, experimentation, funnel work |
 | Medium | B2B SaaS conversion agencies | Fit if they target SaaS demos, calls, trials, or pipeline conversion |
 | Low | Generic web agencies | Keep only if conversion optimization is clearly positioned |
 | Low | SEO/PPC agencies | Keep only if CRO is a serious visible service |
 | Exclude | Lead gen agencies | Not relevant unless CRO services are explicit |
 | Exclude | Software vendors | Not service providers unless they also provide CRO consulting |
+
+Do not source final-client companies when the user asks for provider / prestataire sourcing.
+
+If the user asks for providers and the company is a final-client ICP (accounting firm, law firm, architecture firm, SaaS company, ecommerce brand), skip it and explain the routing error.
 
 ---
 
@@ -463,6 +469,67 @@ Bad examples:
 
 ---
 
+## Provider acceptance gate
+
+A provider may only be marked **accepted** (MCP-ready for writing) if all of the following are present:
+
+| Field | Required |
+|---|---|
+| `company_name` | Yes |
+| `website` | Yes |
+| `country` | Yes |
+| `offer_type` | Yes — must confirm CRO / conversion / UX / landing page / funnel service |
+| CRO / provider relevance | Yes — confirmed from website |
+| `why_fit` | Yes — explains Audit CRO pilot relevance |
+| Exact public or verified email | **Yes** |
+| `email_source_url` | **Yes** — must point to the source where the email was found |
+
+If the exact email or `email_source_url` is missing, mark the provider as:
+
+```
+qualified_but_blocked_from_writing
+```
+
+Do not mark it accepted.
+
+Do not write it to the Sheet.
+
+Include it in the run output under "Qualified but blocked" with the reason.
+
+---
+
+## Provider email acceptance rules
+
+### Accepted emails
+
+- Exact public generic email visible on official website or reliable public source
+- Exact verified decision-maker email from approved enrichment logic (Hunter, Prospeo)
+
+Accepted generic email formats:
+
+- `info@`
+- `hello@`
+- `contact@`
+- `enquiries@`
+- `partnerships@`
+- `team@`
+- `office@`
+
+### Rejected emails
+
+The following must not be used as accepted emails:
+
+- Guessed emails (pattern-only without verification)
+- Placeholders (e.g. `firstname@domain.com` without evidence)
+- Unverified `first.last@domain` patterns
+- RocketReach pattern-only data without confirmation
+- Contact form alone (no email address extracted)
+- Phone number alone
+
+A provider with only a guessed or unverified email must be marked `qualified_but_blocked_from_writing`.
+
+---
+
 ## Duplicate prevention
 
 Before handing a provider to the Sheet Writer, check for duplicates when duplicate detection is available.
@@ -726,40 +793,75 @@ Use mx_lookup only if only domain-level validation was completed.
 
 Use pattern_detection only if only pattern guesses were produced.
 
-Run summary required
+## Run output structure
 
-At the end of each provider sourcing run, summarize:
+Every provider run must separate results into these sections in order:
 
-number of providers searched
-number of providers retained
-number of duplicates skipped
-number of public emails found
-number of Hunter lookups used
-number of leads flagged for Prospeo
-number of high, medium, and low priority leads
-companies written
-companies skipped
-exact API responses if writing occurred
-main observations
-next recommended action
+**1. Reviewed providers** — all providers evaluated with brief reason
 
-Example summary format:
+**2. Accepted (MCP-ready)** — providers that passed all acceptance criteria including exact email and email_source_url
+
+**3. Qualified but blocked from writing** — providers that passed qualification but are missing exact email or email_source_url; mark each as `qualified_but_blocked_from_writing` with the missing field
+
+**4. Rejected** — providers that failed qualification, with reason per provider
+
+**5. Duplicates** — providers already present in the sheet, with duplicate signal
+
+**6. Rows actually written** — only if a write call returned a confirmed success response, with exact API response per row
+
+**7. Write status** — if no write call was performed, output exactly:
+
+```
+NO_WRITE_PERFORMED
+```
+
+---
+
+## Run summary required
+
+At the end of each provider sourcing run, add a summary block:
+
+```
+Provider sourcing run complete.
+
+Searched: N providers
+Accepted (MCP-ready): N
+Qualified but blocked: N (reason: missing email / email_source_url)
+Rejected: N
+Duplicates: N
+Rows written: N (or NO_WRITE_PERFORMED)
+Priority split: N high, N medium, N low
+Hunter lookups used: N
+Prospeo needed: N
+
+Main observation:
+[one short paragraph]
+
+Next action:
+[recommended next step]
+```
+
+Example:
+
+```
 Provider sourcing run complete.
 
 Searched: 24 providers
-Retained: 8 providers
-Skipped duplicates: 2
-Public emails found: 4
+Accepted (MCP-ready): 5
+Qualified but blocked: 3 (missing email_source_url)
+Rejected: 14
+Duplicates: 2
+Rows written: NO_WRITE_PERFORMED
+Priority split: 5 high, 3 medium, 0 low
 Hunter lookups used: 3
 Prospeo needed: 1
-Priority split: 5 high, 3 medium, 0 low
-Rows added: 8
 
 Main observation:
 Most strong fits were boutique CRO and landing page optimization providers. Generic growth agencies were weaker unless CRO was clearly positioned.
 
 Next action:
-Review the added providers in Prestataires_Audit_CRO before launching outreach.
+Review accepted rows, then confirm write via Claude Code + MCP.
+```
 
 Non-negotiable rules
 Do not source final clients with this skill.

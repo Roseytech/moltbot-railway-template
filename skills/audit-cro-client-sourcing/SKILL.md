@@ -341,6 +341,32 @@ Do not use Prospeo if:
 
 ---
 
+## Final-client clarification
+
+A final-client company does not need to offer CRO, mention CRO, or show an optimization angle.
+
+It is valid if it is a credible business with high-value services and observable website conversion friction.
+
+Do not reject a final-client lead because:
+
+- the company does not mention CRO
+- the company does not sell CRO
+- the company uses a generic public email
+
+Generic public emails are acceptable if visibly sourced on the company's official website or contact page.
+
+Accepted generic email formats include:
+
+- `info@`
+- `hello@`
+- `contact@`
+- `enquiries@`
+- `partnerships@`
+- `team@`
+- `office@`
+
+---
+
 ## Mandatory CRO friction rule
 
 Observable CRO friction is mandatory for every final-client lead.
@@ -366,24 +392,22 @@ A final-client lead is eligible for append only if:
 
 A valid lead should show at least 2 observable CRO friction signals.
 
-Examples:
+Observable CRO friction includes:
 
-- no booking link
-- no Calendly or direct appointment flow
-- generic “Contact us” CTA only
-- phone / email only conversion path
-- contact form hidden or weak
-- no clear consultation CTA
-- services are numerous but poorly structured
-- pages are text-heavy and hard to scan
-- weak homepage value proposition
-- no service-specific landing pages
-- trust signals exist but are poorly used
-- testimonials, accreditations, or awards are not placed near conversion points
-- no clear “why choose us” section
-- old or institutional design
-- mobile experience appears weak
-- no clear next step for a warm visitor
+- weak or unclear CTA
+- generic contact journey only (phone or email with no booking flow)
+- no booking, consultation, or appointment flow
+- poor service segmentation (many services, no clear conversion path per service)
+- dated or institutional website design
+- text-heavy pages with no scannable structure
+- trust signals not placed near CTA
+- contact page friction (form buried or absent)
+- no landing pages for high-value services
+- poor mobile or unclear enquiry path
+- no clear “why choose us” near decision point
+- services listed but no clear next step for a warm visitor
+- no Calendly, booking, or live-chat conversion path
+- testimonials or accreditations present but not converting
 
 Do not describe the site as simply “ugly”.
 
@@ -816,6 +840,12 @@ Do not ask for approval again once the user has approved writing.
 Do not return another review list before writing if the user already approved writing.
 
 Do not say that rows were added unless the write action returned success.
+
+If no actual write call was performed, output exactly:
+
+```
+NO_WRITE_PERFORMED
+```
 
 If the endpoint returns duplicate, HTTP 409, or any error:
 - do not retry elsewhere

@@ -7,6 +7,32 @@ description: Mandatory controller for Audit CRO sourcing runs. Prevents silent b
 
 Use this skill for every Audit CRO sourcing run.
 
+## Current workflow
+
+Until OpenClaw is directly confirmed as a working MCP client, the Audit CRO agent operates as a sourcing and qualification agent only.
+
+OpenClaw may prepare MCP-ready rows but must not claim direct Google Sheet writes unless one of the following provides actual technical evidence:
+
+- MCP tool response (`audit_cro_append_client` or `audit_cro_append_provider`)
+- Railway endpoint HTTP response
+- Sheet Writer confirmed response
+
+The validated write path as of 2026-04-30 is:
+
+```
+OpenClaw Audit CRO → sourcing and qualification only
+Claude Code + MCP server → actual secured write
+Railway endpoint (protected by X-AUDIT-CRO-SECRET) → Google Sheet append
+```
+
+OpenClaw must not pretend to write directly. If no actual write call was performed, output exactly:
+
+```
+NO_WRITE_PERFORMED
+```
+
+---
+
 ## Purpose
 
 Control Audit CRO sourcing runs so they remain bounded, measurable, and immediately actionable.
@@ -442,7 +468,9 @@ For each run:
 
 When writing, use only the Audit CRO Sheet Writer.
 
-The Sheet Writer must call the approved Railway endpoint via exec curl POST.
+The preferred write path is Claude Code + MCP server (`audit_cro_append_client` / `audit_cro_append_provider`).
+
+If Claude Code + MCP is unavailable, the Sheet Writer may fall back to exec curl POST with `X-AUDIT-CRO-SECRET` header.
 
 Do not write directly to Google Sheets.
 
@@ -458,6 +486,12 @@ Do not retry elsewhere if the endpoint returns:
 - failed write response
 
 Never claim a row was added unless the Railway endpoint confirms success.
+
+If no actual write call was performed, output exactly:
+
+```
+NO_WRITE_PERFORMED
+```
 
 ## Write correction rule
 
@@ -577,17 +611,21 @@ Do not call the Sheet Writer.
 
 ## Write mode final summary
 
-After writing, return only:
+After every provider run, the output must include all of the following sections in order:
 
-- exact rows added count
-- companies successfully appended
-- companies skipped or failed with reason
+1. **Reviewed providers** — all providers evaluated
+2. **Accepted (MCP-ready)** — providers that passed all acceptance criteria
+3. **Qualified but blocked** — providers that qualified but are missing exact email or email_source_url; mark as `qualified_but_blocked_from_writing`
+4. **Rejected** — providers that failed qualification, with reason
+5. **Duplicates** — providers already present, with reason
+6. **Rows actually written** — only if a write call returned success, with exact API response
+7. If no write call was performed, output exactly:
+
+```
+NO_WRITE_PERFORMED
+```
 
 The count must match the number of companies listed.
-
-If 9 companies were appended, say 9.
-
-If 8 companies were appended, list only 8.
 
 Never claim a row was added unless the write action returned success.
 
@@ -615,6 +653,29 @@ If unable to complete, return current progress immediately.
 
 ---
 
+## MCP status
+
+As of 2026-04-30, the Audit CRO MCP server is validated with Claude Code only.
+
+- MCP local server: validated
+- Endpoints protected by `X-AUDIT-CRO-SECRET` header: confirmed
+- Provider append (`Prestataires_Audit_CRO`): tested and working
+- Client append (`Clients_Finaux_Audit_CRO`): tested and working
+- OpenClaw as direct MCP client: **not yet confirmed**
+
+Therefore OpenClaw must not pretend to write directly until the connection is explicitly tested and confirmed.
+
+---
+
+## Test rows
+
+Two test rows may be present in the Google Sheet and can be removed manually:
+
+- `MCP_TEST_DO_NOT_USE` in `Clients_Finaux_Audit_CRO`
+- `MCP_PROVIDER_TEST_DO_NOT_USE` in `Prestataires_Audit_CRO`
+
+---
+
 ## Core reminder
 
 Audit CRO sourcing is not open-ended.
@@ -631,4 +692,4 @@ Every run must have:
 - bounded Hunter usage
 - bounded Prospeo usage
 - exact A:AF row mapping
-- a final summary
+- a final summary with NO_WRITE_PERFORMED if no write call was made
