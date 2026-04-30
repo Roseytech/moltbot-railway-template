@@ -7,17 +7,17 @@ Command: sh /data/workspace/headhunter-ops.sh
 
 ### Audit CRO MCP Server (`mcp-audit-cro`)
 
-Validated as of 2026-04-30.
+Updated 2026-04-30. MCP server is now bundled in the Railway runtime image.
 
-The MCP server is the preferred write path for Audit CRO Google Sheet operations.
+`mcp-audit-cro` is the **real write path** for Audit CRO Google Sheet operations.  
+It is the sole authoritative write mechanism for the Audit CRO agent.
 
-**Location:** `mcp-audit-cro/index.js`
+**Runtime location (Railway image):** `/app/mcp-audit-cro/index.js`  
+**Source location:** `mcp-audit-cro/index.js`
 
-**Config:** `mcp-audit-cro/.env` (not committed — see `.env.example`)
-
-**Required env vars:**
-- `RAILWAY_APP_URL` — Railway app base URL
-- `AUDIT_CRO_INTERNAL_SECRET` — shared secret, must match Railway Variable
+**Required env vars (Railway Variables):**
+- `RAILWAY_APP_URL` — Railway app base URL (set in `mcp.servers.audit-cro.env` in openclaw.json)
+- `AUDIT_CRO_INTERNAL_SECRET` — shared secret; inherited from Railway environment by the spawned MCP process
 
 **Tools exposed:**
 
@@ -36,4 +36,54 @@ All append tools support `dry_run: true` to validate without writing.
 
 **Write constraints:** append-only, no update, no delete, no overwrite, no unauthorized tabs.
 
-**OpenClaw MCP connection:** not yet confirmed. Until confirmed, Claude Code + MCP is the validated write path.
+**Agent scope:**  
+`audit_cro_*` tools are for the **Audit CRO agent only**.  
+Other agents must not call `audit_cro_*` tools under any circumstance.
+
+**Write enforcement rule:**  
+`audit_cro_append_provider` or `audit_cro_append_client` must be called before claiming rows were written.  
+If no MCP tool call was made in the session, the agent must output exactly:
+
+```
+NO_WRITE_PERFORMED
+```
+
+**OpenClaw config block** (paste into `/data/.openclaw/openclaw.json` via Control UI config editor):
+
+```json
+"mcp": {
+  "servers": {
+    "audit-cro": {
+      "command": "node",
+      "args": ["/app/mcp-audit-cro/index.js"],
+      "env": {
+        "RAILWAY_APP_URL": "https://moltbot-railway-template-production-2e3c.up.railway.app"
+      }
+    }
+  }
+}
+```
+
+Note: `AUDIT_CRO_INTERNAL_SECRET` is **not** set in the `env` block above.  
+It is inherited from the Railway process environment when OpenClaw spawns the MCP server subprocess.  
+If OpenClaw's MCP subprocess implementation does not inherit the parent environment, `AUDIT_CRO_INTERNAL_SECRET` must be added to the `env` block in openclaw.json — but its value must be read from the Railway Variable, never hardcoded in config.
+
+**audit-cro agent skills list** (paste into openclaw.json under the audit-cro agent definition):
+
+```json
+"skills": [
+  "audit-cro-run-controller",
+  "audit-cro-prestataires-sourcing",
+  "audit-cro-client-sourcing",
+  "audit-cro-sheet-writer"
+]
+```
+
+**Post-deploy verification** (run in Railway shell or debug console):
+
+```bash
+ls -la /app/mcp-audit-cro
+node --check /app/mcp-audit-cro/index.js
+```
+
+**Do not run live writes for verification.** Use `dry_run: true` or `audit_cro_health_check` instead.

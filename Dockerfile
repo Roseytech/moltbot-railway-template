@@ -98,6 +98,16 @@ RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"'
 COPY src ./src
 COPY skills ./skills
 
+# mcp-audit-cro MCP server
+# Copy manifest files first so the npm ci layer is cached independently of source changes.
+# Local mcp-audit-cro/node_modules is intentionally NOT copied; deps are installed fresh here.
+COPY mcp-audit-cro/package.json mcp-audit-cro/package-lock.json ./mcp-audit-cro/
+RUN npm ci --prefix /app/mcp-audit-cro --omit=dev
+COPY mcp-audit-cro/index.js ./mcp-audit-cro/
+# Post-deploy verification (run manually after Railway build):
+#   ls -la /app/mcp-audit-cro
+#   node --check /app/mcp-audit-cro/index.js
+
 ENV PORT=8080
 EXPOSE 8080
 CMD ["node", "src/server.js"]
