@@ -874,31 +874,17 @@ function requireAuditCroSecret(req, res, next) {
 
 app.post("/setup/api/sheets/audit-cro/prestataires", requireAuditCroSecret, express.json(), async (req, res) => {
   try {
-  const built = buildRowFromPayload(
-  req.body,
-  PRESTATAIRE_FIELDS,
-  "Prestataires_Audit_CRO"
-);
+  const normalized = normalizeSheetValues(
+    req.body,
+    PRESTATAIRE_FIELDS,
+    "Prestataires_Audit_CRO"
+  );
 
-if (!built.ok) {
-  return res.status(built.status).json(built.response);
-}
+  if (!normalized.ok) {
+    return res.status(normalized.status).json(normalized.response);
+  }
 
-const row = normalizeProviderRow(built.row);
-
-const validationErrors = validateProviderRow(row);
-
-if (validationErrors.length > 0) {
-  return res.status(422).json({
-    success: false,
-    error: "PROVIDER_ROW_VALIDATION_ERROR",
-    tab: "Prestataires_Audit_CRO",
-    company: row.company_name || "",
-    details: validationErrors
-  });
-}
-
-const values = rowToSheetValues(row, PRESTATAIRE_FIELDS);
+  const values = normalized.values;
 
 const sheets = await getSheetsClient();
 
